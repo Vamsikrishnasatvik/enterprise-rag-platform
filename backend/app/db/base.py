@@ -1,5 +1,4 @@
-from sqlalchemy.orm import DeclarativeBase
+from app.db.session import Base
 
-
-class Base(DeclarativeBase):
-    pass
+# Import all models here for Alembic
+from app.models.document import Document
