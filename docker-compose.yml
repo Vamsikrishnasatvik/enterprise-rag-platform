@@ -62,10 +62,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./storage:/app/storage
     depends_on:
       - postgres
       - qdrant
-      - redis 
+      - redis
 
   frontend:
     build:
