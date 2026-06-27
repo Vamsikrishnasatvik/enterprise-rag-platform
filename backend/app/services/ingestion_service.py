@@ -38,14 +38,25 @@ def process_document(
             "Document not found"
         )
 
+    # Prevent accidental re-indexing
+    if document.status == "INDEXED":
+        return document
+
     try:
         document.status = "PROCESSING"
         db.commit()
+        db.refresh(document)
 
-        db.query(DocumentChunk).filter(
-            DocumentChunk.document_id
-            == document.id
-        ).delete()
+        # Remove old chunks if this document
+        # is being reprocessed
+        (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_id
+                == document.id
+            )
+            .delete()
+        )
 
         db.commit()
 
@@ -81,8 +92,15 @@ def process_document(
 
         document.status = "INDEXED"
         db.commit()
+        db.refresh(document)
+
+        return document
 
     except Exception:
+        db.rollback()
+
         document.status = "FAILED"
         db.commit()
+        db.refresh(document)
+
         raise
