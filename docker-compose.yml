@@ -68,6 +68,22 @@ services:
       - qdrant
       - redis
 
+  worker:
+    build:
+      context: ./backend
+    container_name: enterprise_worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: rq worker ingestion
+    volumes:
+      - ./backend:/app
+      - ./storage:/app/storage
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+
   frontend:
     build:
       context: ./frontend
@@ -85,3 +101,4 @@ volumes:
   postgres_data:
   qdrant_data:
   redis_data:
+

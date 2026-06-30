@@ -3,12 +3,8 @@ from sqlalchemy.orm import Session
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 
-from app.services.document_parser import (
-    parse_document,
-)
-from app.services.chunking_service import (
-    chunk_document,
-)
+from app.services.document_parser import parse_document
+from app.services.chunking_service import chunk_document
 from app.services.document_chunk_service import (
     create_document_chunks,
 )
@@ -38,7 +34,6 @@ def process_document(
             "Document not found"
         )
 
-    # Prevent accidental re-indexing
     if document.status == "INDEXED":
         return document
 
@@ -47,8 +42,6 @@ def process_document(
         db.commit()
         db.refresh(document)
 
-        # Remove old chunks if this document
-        # is being reprocessed
         (
             db.query(DocumentChunk)
             .filter(
@@ -91,6 +84,7 @@ def process_document(
         )
 
         document.status = "INDEXED"
+
         db.commit()
         db.refresh(document)
 
@@ -100,6 +94,7 @@ def process_document(
         db.rollback()
 
         document.status = "FAILED"
+
         db.commit()
         db.refresh(document)
 
