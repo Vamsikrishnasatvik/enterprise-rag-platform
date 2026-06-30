@@ -57,4 +57,9 @@ class Tenant(Base):
     users = relationship(
     "User",
     backref="tenant",
-)
+    )
+
+    ingestion_jobs = relationship(
+    "IngestionJob",
+    backref="tenant",
+    )
