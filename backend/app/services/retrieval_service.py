@@ -10,7 +10,7 @@ COLLECTION_NAME = "document_chunks"
 
 def search_chunks(
     query: str,
-    limit: int = 5,
+    limit: int = 3,
 ):
     vector = generate_embeddings(
         [query]
