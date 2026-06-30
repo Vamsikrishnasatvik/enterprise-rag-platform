@@ -10,7 +10,11 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str
 
     OPENAI_API_KEY: str = ""
-    JWT_SECRET: str
+
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
     ENVIRONMENT: str = "development"
 
     class Config:
@@ -18,4 +22,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

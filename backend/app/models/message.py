@@ -10,6 +10,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
+from sqlalchemy import ForeignKey
+
 from app.db.session import Base
 
 
@@ -51,4 +53,11 @@ class Message(Base):
     conversation = relationship(
         "Conversation",
         back_populates="messages",
+    )
+
+    tenant_id = Column(
+    Integer,
+    ForeignKey("tenants.id"),
+    nullable=False,
+    index=True,
     )

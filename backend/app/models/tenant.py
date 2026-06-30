@@ -4,17 +4,17 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
+    Boolean,
     DateTime,
 )
-from sqlalchemy.orm import relationship
 
-from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
 from app.db.session import Base
 
 
-class Conversation(Base):
-    __tablename__ = "conversations"
+class Tenant(Base):
+    __tablename__ = "tenants"
 
     id = Column(
         Integer,
@@ -22,9 +22,23 @@ class Conversation(Base):
         index=True,
     )
 
-    title = Column(
+    name = Column(
         String,
-        nullable=True,
+        nullable=False,
+        unique=True,
+    )
+
+    slug = Column(
+        String,
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    is_active = Column(
+        Boolean,
+        default=True,
+        nullable=False,
     )
 
     created_at = Column(
@@ -40,15 +54,7 @@ class Conversation(Base):
         nullable=False,
     )
 
-    messages = relationship(
-        "Message",
-        back_populates="conversation",
-        cascade="all, delete-orphan",
-    )
-
-    tenant_id = Column(
-    Integer,
-    ForeignKey("tenants.id"),
-    nullable=False,
-    index=True,
-    )
+    users = relationship(
+    "User",
+    backref="tenant",
+)
