@@ -10,6 +10,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
+from sqlalchemy import ForeignKey
+
 from app.db.session import Base
 
 
@@ -56,4 +58,11 @@ class DocumentChunk(Base):
     document = relationship(
         "Document",
         back_populates="chunks",
+    )
+
+    tenant_id = Column(
+    Integer,
+    ForeignKey("tenants.id"),
+    nullable=False,
+    index=True,
     )

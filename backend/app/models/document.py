@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 
 from sqlalchemy.orm import relationship
 
+from sqlalchemy import ForeignKey
 from app.db.session import Base
 
 
@@ -41,4 +42,11 @@ class Document(Base):
     "DocumentChunk",
     back_populates="document",
     cascade="all, delete-orphan",
-)
+    )
+
+    tenant_id = Column(
+    Integer,
+    ForeignKey("tenants.id"),
+    nullable=False,
+    index=True,
+    )
