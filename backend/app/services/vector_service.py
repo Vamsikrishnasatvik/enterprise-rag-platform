@@ -50,6 +50,7 @@ def upsert_chunks(
                 id=chunk.id,
                 vector=vector,
                 payload={
+                    "tenant_id": chunk.tenant_id,
                     "chunk_id": chunk.id,
                     "document_id": chunk.document_id,
                     "content": chunk.content,
