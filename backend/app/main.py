@@ -24,3 +24,14 @@ app.include_router(
 )
 
 app.include_router(api_router)
+
+
+from app.api.v1.conversations import (
+    router as conversation_router,
+)
+
+app.include_router(
+    conversation_router,
+    prefix="/api/v1/conversations",
+    tags=["Conversations"],
+)
