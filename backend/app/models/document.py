@@ -50,3 +50,9 @@ class Document(Base):
     nullable=False,
     index=True,
     )
+
+    ingestion_jobs = relationship(
+    "IngestionJob",
+    backref="document",
+    cascade="all, delete-orphan",
+    )
