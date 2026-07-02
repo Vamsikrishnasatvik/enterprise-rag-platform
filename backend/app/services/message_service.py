@@ -1,12 +1,14 @@
 from sqlalchemy.orm import Session
 
 from app.models.message import Message
-from app.models.conversation import (
-    Conversation,
-)
 
 from app.services.conversation_service import (
     increment_message_count,
+)
+
+from app.services.summarization_service import (
+    should_generate_summary,
+    create_summary,
 )
 
 
@@ -28,10 +30,21 @@ def create_message(
     db.commit()
     db.refresh(message)
 
-    increment_message_count(
+    conversation = increment_message_count(
         db,
         conversation_id,
     )
+
+    if (
+        conversation
+        and should_generate_summary(
+            conversation
+        )
+    ):
+        create_summary(
+            db,
+            conversation,
+        )
 
     return message
 
@@ -46,7 +59,9 @@ def get_messages(
             Message.conversation_id
             == conversation_id
         )
-        .order_by(Message.created_at)
+        .order_by(
+            Message.created_at
+        )
         .all()
     )
 
