@@ -3,7 +3,12 @@ from fastapi import Depends
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.dependencies.db import get_db
+from app.core.dependencies import (
+    get_db,
+    get_current_user,
+)
+
+from app.models.user import User
 
 from app.schemas.conversation import (
     ConversationCreate,
@@ -36,10 +41,14 @@ router = APIRouter()
 def create_new_conversation(
     request: ConversationCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ):
     return create_conversation(
-        db,
-        request.title,
+        db=db,
+        tenant_id=current_user.tenant_id,
+        title=request.title,
     )
 
 
@@ -50,6 +59,9 @@ def create_new_conversation(
 def get_conversation_by_id(
     conversation_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ):
     conversation = get_conversation(
         db,
@@ -62,6 +74,15 @@ def get_conversation_by_id(
             detail="Conversation not found",
         )
 
+    if (
+        conversation.tenant_id
+        != current_user.tenant_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
     return conversation
 
 
@@ -72,6 +93,9 @@ def get_conversation_by_id(
 def get_conversation_messages(
     conversation_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ):
     conversation = get_conversation(
         db,
@@ -82,6 +106,15 @@ def get_conversation_messages(
         raise HTTPException(
             status_code=404,
             detail="Conversation not found",
+        )
+
+    if (
+        conversation.tenant_id
+        != current_user.tenant_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
         )
 
     return get_messages(
@@ -97,6 +130,9 @@ def query_conversation(
     conversation_id: int,
     request: ConversationQueryRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ):
     conversation = get_conversation(
         db,
@@ -109,8 +145,18 @@ def query_conversation(
             detail="Conversation not found",
         )
 
+    if (
+        conversation.tenant_id
+        != current_user.tenant_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
     create_message(
         db=db,
+        tenant_id=current_user.tenant_id,
         conversation_id=conversation_id,
         role="user",
         content=request.query,
@@ -124,6 +170,7 @@ def query_conversation(
 
     create_message(
         db=db,
+        tenant_id=current_user.tenant_id,
         conversation_id=conversation_id,
         role="assistant",
         content=result["answer"],

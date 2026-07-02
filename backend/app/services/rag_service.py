@@ -1,14 +1,21 @@
 from app.services.retrieval_service import (
     search_chunks,
 )
+
 from app.services.context_service import (
     build_context,
 )
+
 from app.services.llm_service import (
     generate_answer,
 )
+
 from app.services.message_service import (
     build_chat_history,
+)
+
+from app.services.conversation_service import (
+    get_latest_summary,
 )
 
 
@@ -54,7 +61,26 @@ def answer_conversation_question(
     history = build_chat_history(
         db,
         conversation_id,
+        max_messages=10,
     )
+
+    latest_summary = (
+        get_latest_summary(
+            db,
+            conversation_id,
+        )
+    )
+
+    if latest_summary:
+        history.insert(
+            0,
+            {
+                "role": "system",
+                "content":
+                    f"Conversation Summary:\n"
+                    f"{latest_summary.summary}",
+            },
+        )
 
     results = search_chunks(
         question

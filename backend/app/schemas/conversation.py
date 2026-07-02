@@ -8,7 +8,11 @@ class ConversationCreate(BaseModel):
 
 class ConversationResponse(BaseModel):
     id: int
+    tenant_id: int
     title: str | None
+    summary: str | None
+    message_count: int
+    last_message_at: datetime | None
     created_at: datetime
 
     model_config = {
