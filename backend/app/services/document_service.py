@@ -10,6 +10,10 @@ def create_document(
     storage_path: str,
     file_type: str,
     file_size: int,
+    department: str | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    tags: list[str] | None = None,
 ):
     document = Document(
         tenant_id=tenant_id,
@@ -18,6 +22,10 @@ def create_document(
         file_type=file_type,
         file_size=file_size,
         status="UPLOADED",
+        department=department,
+        category=category,
+        source=source,
+        tags=tags,
     )
 
     db.add(document)

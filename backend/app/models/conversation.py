@@ -5,10 +5,12 @@ from sqlalchemy import (
     Integer,
     String,
     DateTime,
+    Text,
+    JSON,
+    ForeignKey,
 )
-from sqlalchemy.orm import relationship
 
-from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
 from app.db.session import Base
 
@@ -27,6 +29,27 @@ class Conversation(Base):
         nullable=True,
     )
 
+    summary = Column(
+        Text,
+        nullable=True,
+    )
+
+    message_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    last_message_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
+    conversation_metadata = Column(
+        JSON,
+        nullable=True,
+    )
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow,
@@ -40,15 +63,21 @@ class Conversation(Base):
         nullable=False,
     )
 
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id"),
+        nullable=False,
+        index=True,
+    )
+
     messages = relationship(
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan",
     )
 
-    tenant_id = Column(
-    Integer,
-    ForeignKey("tenants.id"),
-    nullable=False,
-    index=True,
+    summaries = relationship(
+        "ConversationSummary",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
     )

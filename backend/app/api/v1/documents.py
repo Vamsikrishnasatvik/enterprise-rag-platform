@@ -2,6 +2,7 @@ from fastapi import (
     APIRouter,
     UploadFile,
     File,
+    Form,
     Depends,
 )
 from sqlalchemy.orm import Session
@@ -31,6 +32,10 @@ router = APIRouter()
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
+    department: str | None = Form(None),
+    category: str | None = Form(None),
+    source: str | None = Form(None),
+    tags: str | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         get_current_user
@@ -42,6 +47,12 @@ async def upload_document(
 
     file_size = file.size or 0
 
+    tag_list = (
+        [t.strip() for t in tags.split(",")]
+        if tags
+        else None
+    )
+
     document = create_document(
         db=db,
         tenant_id=current_user.tenant_id,
@@ -50,6 +61,10 @@ async def upload_document(
         file_type=file.content_type
         or "application/octet-stream",
         file_size=file_size,
+        department=department,
+        category=category,
+        source=source,
+        tags=tag_list,
     )
 
     job = create_ingestion_job(
