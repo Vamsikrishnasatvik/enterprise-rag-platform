@@ -37,6 +37,9 @@ If the question asks for:
 
 you must inspect the values in the context and compute the answer.
 
+CONVERSATION HISTORY:
+{history_text}
+
 CONTEXT:
 {context}
 
@@ -53,16 +56,19 @@ ANSWER:
 
     try:
         response = requests.post(
-    f"{settings.OLLAMA_BASE_URL}/api/generate",
-    json={
-        "model": settings.OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False,
-    },
-    timeout=120,
-)
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=120,
+        )
 
-        print("OLLAMA STATUS:", response.status_code)
+        print(
+            "OLLAMA STATUS:",
+            response.status_code,
+        )
 
         if response.status_code != 200:
             print("OLLAMA ERROR:")
@@ -78,6 +84,8 @@ ANSWER:
         )
 
     except requests.exceptions.RequestException as e:
-        print("OLLAMA REQUEST FAILED:")
+        print(
+            "OLLAMA REQUEST FAILED:"
+        )
         print(str(e))
         raise

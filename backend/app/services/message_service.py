@@ -12,6 +12,15 @@ from app.services.summarization_service import (
 )
 
 
+def estimate_tokens(
+    text: str,
+):
+    return max(
+        1,
+        len(text) // 4,
+    )
+
+
 def create_message(
     db: Session,
     tenant_id: int,
@@ -69,7 +78,7 @@ def get_messages(
 def build_chat_history(
     db: Session,
     conversation_id: int,
-    max_messages: int = 10,
+    max_tokens: int = 1500,
 ):
     messages = (
         db.query(Message)
@@ -80,20 +89,38 @@ def build_chat_history(
         .order_by(
             Message.created_at.desc()
         )
-        .limit(max_messages)
         .all()
     )
 
-    messages.reverse()
-
     history = []
 
+    total_tokens = 0
+
     for message in messages:
+        message_tokens = (
+            estimate_tokens(
+                message.content
+            )
+        )
+
+        if (
+            total_tokens
+            + message_tokens
+            > max_tokens
+        ):
+            break
+
         history.append(
             {
                 "role": message.role,
                 "content": message.content,
             }
         )
+
+        total_tokens += (
+            message_tokens
+        )
+
+    history.reverse()
 
     return history

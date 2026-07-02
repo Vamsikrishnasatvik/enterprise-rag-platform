@@ -61,7 +61,7 @@ def answer_conversation_question(
     history = build_chat_history(
         db,
         conversation_id,
-        max_messages=10,
+        max_tokens=1500,
     )
 
     latest_summary = (
@@ -77,7 +77,7 @@ def answer_conversation_question(
             {
                 "role": "system",
                 "content":
-                    f"Conversation Summary:\n"
+                    "Conversation Summary:\n"
                     f"{latest_summary.summary}",
             },
         )
