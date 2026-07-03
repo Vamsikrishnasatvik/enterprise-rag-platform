@@ -18,3 +18,10 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Uploaded documents
+backend/app/uploads/
+backend/app/vector_store/
+*.pdf
+*.csv
+*.xlsx
