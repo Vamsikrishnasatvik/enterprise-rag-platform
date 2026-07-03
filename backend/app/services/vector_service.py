@@ -5,6 +5,7 @@ from qdrant_client.models import (
     PointStruct,
 )
 
+from app.models.document import Document
 from app.core.config import settings
 
 COLLECTION_NAME = "document_chunks"
@@ -38,6 +39,7 @@ def create_collection():
 def upsert_chunks(
     chunk_records,
     embeddings,
+    document: Document,
 ):
     points = []
 
@@ -54,6 +56,12 @@ def upsert_chunks(
                     "chunk_id": chunk.id,
                     "document_id": chunk.document_id,
                     "content": chunk.content,
+
+                    "department": document.department,
+                    "category": document.category,
+                    "source": document.source,
+                    "tags": document.tags,
+
                     "metadata": (
                         chunk.chunk_metadata
                         or {}

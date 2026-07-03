@@ -111,6 +111,7 @@ def query_conversation(
 
     create_message(
         db=db,
+        tenant_id=conversation.tenant_id,
         conversation_id=conversation_id,
         role="user",
         content=request.query,
@@ -120,10 +121,15 @@ def query_conversation(
         db=db,
         conversation_id=conversation_id,
         question=request.query,
+        department=request.department,
+        category=request.category,
+        source=request.source,
+        tags=request.tags,
     )
 
     create_message(
         db=db,
+        tenant_id=conversation.tenant_id,
         conversation_id=conversation_id,
         role="assistant",
         content=result["answer"],

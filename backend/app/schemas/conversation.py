@@ -29,3 +29,8 @@ class MessageResponse(BaseModel):
 
 class ConversationQueryRequest(BaseModel):
     query: str
+
+    department: str | None = None
+    category: str | None = None
+    source: str | None = None
+    tags: list[str] | None = None

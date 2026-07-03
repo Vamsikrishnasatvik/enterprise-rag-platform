@@ -79,8 +79,9 @@ def process_document(
         create_collection()
 
         upsert_chunks(
-            chunk_records,
-            embeddings,
+            chunk_records=chunk_records,
+            embeddings=embeddings,
+            document=document,
         )
 
         document.status = "INDEXED"
