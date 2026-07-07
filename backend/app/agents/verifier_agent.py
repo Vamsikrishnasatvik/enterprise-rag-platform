@@ -20,20 +20,23 @@ class VerifierAgent(BaseAgent):
         logger.info("VerifierAgent started")
 
         state.setdefault("execution_trace", [])
+        state.setdefault("retrieval_attempts", 1)
+        state.setdefault("max_retrieval_attempts", 2)
 
         result = verify_retrieval(
             retrieved_chunks=state["retrieved_chunks"],
             context=state["context"],
         )
 
-        state["confidence_score"] = (
-            result.confidence_score
+        logger.info(
+            "Confidence %.2f | Retry %s | %s",
+            result.confidence_score,
+            result.needs_retry,
+            result.verification_reason,
         )
 
-        state["needs_retry"] = (
-            result.needs_retry
-        )
-
+        state["confidence_score"] = result.confidence_score
+        state["needs_retry"] = result.needs_retry
         state["verification_reason"] = (
             result.verification_reason
         )
@@ -43,8 +46,31 @@ class VerifierAgent(BaseAgent):
                 "agent": "VerifierAgent",
                 "status": "completed",
                 "confidence": result.confidence_score,
+                "retry": result.needs_retry,
+                "reason": result.verification_reason,
+                "attempt": state["retrieval_attempts"],
             }
         )
+
+        # Only stop retrying if we've already used
+        # all allowed retrieval attempts.
+        if (
+            state["needs_retry"]
+            and state["retrieval_attempts"]
+            >= state["max_retrieval_attempts"]
+        ):
+            logger.info(
+                "Maximum retrieval attempts reached."
+            )
+
+            state["needs_retry"] = False
+
+            state["verification_reason"] = (
+                "Maximum retrieval attempts reached."
+            )
+
+        # Increment AFTER the routing decision has been recorded.
+        state["retrieval_attempts"] += 1
 
         logger.info(
             "VerifierAgent completed (confidence %.2f)",

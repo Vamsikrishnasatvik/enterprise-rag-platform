@@ -12,11 +12,12 @@ def verify_retrieval(
     context: str | None,
 ) -> VerificationResult:
     """
-    Initial heuristic verifier.
+    Rule-based verifier.
 
-    Later versions will use an LLM.
+    Later this will become an LLM-based verifier.
     """
 
+    # No retrieval
     if not retrieved_chunks:
         return VerificationResult(
             confidence_score=0.0,
@@ -24,17 +25,32 @@ def verify_retrieval(
             verification_reason="No chunks retrieved.",
         )
 
-    if not context or len(context.strip()) < 100:
+    # Empty context
+    if not context:
         return VerificationResult(
-            confidence_score=0.2,
+            confidence_score=0.1,
             needs_retry=True,
-            verification_reason="Insufficient context.",
+            verification_reason="Context is empty.",
         )
+
+    chunk_count = len(retrieved_chunks)
+    context_length = len(context.strip())
 
     confidence = min(
         1.0,
-        len(retrieved_chunks) / 5,
+        (
+            chunk_count / 5
+            + min(context_length / 3000, 1.0)
+        )
+        / 2,
     )
+
+    if confidence < 0.80:
+        return VerificationResult(
+            confidence_score=confidence,
+            needs_retry=True,
+            verification_reason="Low confidence. Retry retrieval.",
+        )
 
     return VerificationResult(
         confidence_score=confidence,

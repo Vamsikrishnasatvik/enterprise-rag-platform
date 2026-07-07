@@ -55,7 +55,7 @@ def answer_question(
         "needs_retry": False,
 
         "verification_reason": None,
-        "retrieval_attempts": 1,
+        "retrieval_attempts": 0,
         "max_retrieval_attempts": 2,
 
         # Final Response

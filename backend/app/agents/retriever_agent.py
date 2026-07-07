@@ -33,6 +33,7 @@ class RetrieverAgent(BaseAgent):
         state.setdefault("execution_plan", {})
         state.setdefault("search_limit", 3)
         state.setdefault("retrieval_strategy", "semantic")
+        state.setdefault("retrieval_attempts", 1)
 
         query = (
             state["rewritten_query"]
@@ -45,6 +46,15 @@ class RetrieverAgent(BaseAgent):
             "retrieval_count",
             state["search_limit"],
         )
+
+        # Adaptive retrieval for retry attempts
+        if state["retrieval_attempts"] >= 1:
+            limit += 2 * state["retrieval_attempts"]
+
+            logger.info(
+                "Retry retrieval detected. Increasing limit to %d",
+                limit,
+            )
 
         filters = state["metadata_filters"]
 
@@ -89,6 +99,10 @@ class RetrieverAgent(BaseAgent):
                 "chunks_retrieved": len(
                     retrieved_chunks
                 ),
+                "retrieval_attempt": state[
+                    "retrieval_attempts"
+                ],
+                "search_limit": limit,
             }
         )
 

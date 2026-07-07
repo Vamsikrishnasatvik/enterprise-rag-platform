@@ -1,5 +1,9 @@
 from langgraph.graph import StateGraph, START, END
 
+from app.graph.router import (
+    verifier_router,
+)
+
 from app.graph.state import GraphState
 from app.graph.nodes import (
     query_node,
@@ -59,9 +63,13 @@ def create_workflow():
         "verifier",
     )
 
-    workflow.add_edge(
+    workflow.add_conditional_edges(
         "verifier",
-        "answer",
+        verifier_router,
+        {
+            "retriever": "retriever",
+            "answer": "answer",
+        },
     )
 
     workflow.add_edge(
