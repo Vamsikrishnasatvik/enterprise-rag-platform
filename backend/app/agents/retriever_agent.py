@@ -7,16 +7,15 @@ from app.services.retrieval_service import (
     search_chunks,
 )
 
-from app.services.context_service import (
-    build_context,
-)
-
 logger = logging.getLogger(__name__)
 
 
 class RetrieverAgent(BaseAgent):
     """
-    Retrieves relevant chunks and builds context.
+    Retrieves relevant chunks only.
+
+    Phase 3.5:
+    Context construction is handled by the RerankerAgent.
     """
 
     def run(
@@ -26,14 +25,13 @@ class RetrieverAgent(BaseAgent):
 
         logger.info("RetrieverAgent started")
 
-        # Initialize runtime state if missing
         state.setdefault("execution_trace", [])
         state.setdefault("metadata_filters", {})
         state.setdefault("retrieved_chunks", [])
         state.setdefault("execution_plan", {})
         state.setdefault("search_limit", 3)
         state.setdefault("retrieval_strategy", "semantic")
-        state.setdefault("retrieval_attempts", 1)
+        state.setdefault("retrieval_attempts", 0)
 
         query = (
             state["rewritten_query"]
@@ -47,7 +45,7 @@ class RetrieverAgent(BaseAgent):
             state["search_limit"],
         )
 
-        # Adaptive retrieval for retry attempts
+        # Adaptive retry
         if state["retrieval_attempts"] >= 1:
             limit += 2 * state["retrieval_attempts"]
 
@@ -75,8 +73,6 @@ class RetrieverAgent(BaseAgent):
             metadata_filters=filters,
         )
 
-        context = build_context(results)
-
         retrieved_chunks = []
 
         for result in results:
@@ -90,15 +86,12 @@ class RetrieverAgent(BaseAgent):
             )
 
         state["retrieved_chunks"] = retrieved_chunks
-        state["context"] = context
 
         state["execution_trace"].append(
             {
                 "agent": "RetrieverAgent",
                 "status": "completed",
-                "chunks_retrieved": len(
-                    retrieved_chunks
-                ),
+                "chunks_retrieved": len(retrieved_chunks),
                 "retrieval_attempt": state[
                     "retrieval_attempts"
                 ],

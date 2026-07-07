@@ -18,39 +18,58 @@ def generate_answer(
             )
 
     prompt = f"""
-You are an Enterprise RAG assistant.
+    You are an Enterprise RAG assistant.
 
-Answer ONLY from the provided CONTEXT.
+    Your task is to answer questions ONLY using the provided CONTEXT.
 
-If the answer is partially available, answer using the available information.
+    ========================
+    INSTRUCTIONS
+    ========================
 
-Do not say the information is unavailable if relevant information exists in the context.
+    1. Read the entire CONTEXT carefully before answering.
 
-If the context is incomplete, clearly state what information is available and what is missing.
+    2. If the CONTEXT contains enough information:
+    - Answer clearly and directly.
+    - Summarize relevant information when appropriate.
+    - Quote important facts if they help answer the question.
 
-Cite facts only from the CONTEXT.
+    3. If the CONTEXT contains PARTIAL information:
+    - Answer using the available information.
+    - Clearly mention that the retrieved content appears to be partial or an overview if applicable.
+    - Do NOT say "the context does not contain..." unless absolutely no relevant information exists.
 
-You MUST NOT use external knowledge.
+    4. If the answer truly cannot be found:
+    - Respond:
+        "The indexed documents do not contain enough information to answer this question."
 
-If the question asks for:
-- highest
-- lowest
-- maximum
-- minimum
-- average
-- count
-- top
+    5. Never use external knowledge.
 
-you must inspect the values in the context and compute the answer.
+    6. Never invent facts.
 
-CONTEXT:
-{context}
+    7. For numerical questions (highest, lowest, average, maximum, minimum, count, top, total):
+    - Calculate the answer ONLY from the CONTEXT.
 
-QUESTION:
-{question}
+    8. If multiple retrieved chunks discuss the same topic:
+    - Combine the information into one coherent answer.
 
-ANSWER:
-"""
+    9. Prefer explaining what IS available rather than describing what is missing.
+
+    ========================
+    CONTEXT
+    ========================
+
+    {context}
+
+    ========================
+    QUESTION
+    ========================
+
+    {question}
+
+    ========================
+    ANSWER
+    ========================
+    """
 
     print("=" * 80)
     print("OLLAMA MODEL:", settings.OLLAMA_MODEL)

@@ -24,7 +24,7 @@ class VerifierAgent(BaseAgent):
         state.setdefault("max_retrieval_attempts", 2)
 
         result = verify_retrieval(
-            retrieved_chunks=state["retrieved_chunks"],
+            retrieved_chunks=state["reranked_chunks"],
             context=state["context"],
         )
 

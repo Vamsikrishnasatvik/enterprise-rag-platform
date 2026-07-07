@@ -48,6 +48,8 @@ def answer_question(
 
         # Retrieval
         "retrieved_chunks": [],
+        "reranked_chunks": [],
+        "evidence_chunks": [],
         "context": None,
 
         # Verification
@@ -75,7 +77,7 @@ def answer_question(
 
     return {
         "answer": final_state["answer"],
-        "sources": final_state["retrieved_chunks"],
+        "sources": final_state["evidence_chunks"]
     }
 
 

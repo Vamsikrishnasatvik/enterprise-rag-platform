@@ -9,7 +9,9 @@ from app.graph.nodes import (
     query_node,
     planner_node,
     retriever_node,
+    reranker_node,
     verifier_node,
+    evidence_node, 
     answer_node,
 )
 
@@ -31,6 +33,16 @@ def create_workflow():
     workflow.add_node(
         "retriever",
         retriever_node,
+    )
+
+    workflow.add_node(
+        "reranker",
+        reranker_node,
+    )
+
+    workflow.add_node(
+        "evidence",
+        evidence_node,
     )
 
     workflow.add_node(
@@ -60,6 +72,11 @@ def create_workflow():
 
     workflow.add_edge(
         "retriever",
+        "reranker",
+    )
+
+    workflow.add_edge(
+        "reranker",
         "verifier",
     )
 
@@ -68,8 +85,13 @@ def create_workflow():
         verifier_router,
         {
             "retriever": "retriever",
-            "answer": "answer",
+            "evidence": "evidence",
         },
+    )
+
+    workflow.add_edge(
+        "evidence",
+        "answer",
     )
 
     workflow.add_edge(

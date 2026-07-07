@@ -38,6 +38,8 @@ class GraphState(TypedDict):
     # Retrieval
     # ==========================
     retrieved_chunks: List[Dict[str, Any]]
+    reranked_chunks: List[Dict[str, Any]]
+    evidence_chunks: List[Dict[str, Any]]
     context: Optional[str]
 
     # ==========================
