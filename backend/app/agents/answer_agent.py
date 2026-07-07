@@ -19,6 +19,9 @@ class AnswerAgent(BaseAgent):
 
         logger.info("AnswerAgent started")
 
+        # Initialize runtime state if missing
+        state.setdefault("execution_trace", [])
+
         answer = generate_answer(
             question=state["question"],
             context=state["context"],

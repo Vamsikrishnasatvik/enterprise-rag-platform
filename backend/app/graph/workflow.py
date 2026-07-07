@@ -3,7 +3,9 @@ from langgraph.graph import StateGraph, START, END
 from app.graph.state import GraphState
 from app.graph.nodes import (
     query_node,
+    planner_node,
     retriever_node,
+    verifier_node,
     answer_node,
 )
 
@@ -18,6 +20,11 @@ def create_workflow():
     )
 
     workflow.add_node(
+        "planner",
+        planner_node,
+    )
+
+    workflow.add_node(
         "retriever",
         retriever_node,
     )
@@ -27,6 +34,11 @@ def create_workflow():
         answer_node,
     )
 
+    workflow.add_node(
+        "verifier",
+        verifier_node,
+    )
+
     workflow.add_edge(
         START,
         "query",
@@ -34,11 +46,21 @@ def create_workflow():
 
     workflow.add_edge(
         "query",
+        "planner",
+    )
+
+    workflow.add_edge(
+        "planner",
         "retriever",
     )
 
     workflow.add_edge(
         "retriever",
+        "verifier",
+    )
+
+    workflow.add_edge(
+        "verifier",
         "answer",
     )
 

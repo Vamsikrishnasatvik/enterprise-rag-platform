@@ -18,11 +18,17 @@ def generate_answer(
             )
 
     prompt = f"""
-You are a data analyst.
+You are an Enterprise RAG assistant.
 
-The CONTEXT contains tabular data.
+Answer ONLY from the provided CONTEXT.
 
-You MUST answer ONLY from the CONTEXT.
+If the answer is partially available, answer using the available information.
+
+Do not say the information is unavailable if relevant information exists in the context.
+
+If the context is incomplete, clearly state what information is available and what is missing.
+
+Cite facts only from the CONTEXT.
 
 You MUST NOT use external knowledge.
 

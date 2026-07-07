@@ -2,23 +2,33 @@ import json
 import requests
 
 from app.core.config import settings
-from app.prompts.query_understanding_prompt import (
-    QUERY_UNDERSTANDING_PROMPT,
+
+from app.prompts.planning_prompt import (
+    PLANNING_PROMPT,
 )
-from app.schemas.query_understanding import (
-    QueryUnderstandingResult,
+
+from app.schemas.execution_plan import (
+    ExecutionPlan,
 )
 
 
-def understand_query(
+def create_execution_plan(
     question: str,
-) -> QueryUnderstandingResult:
+    intent: str,
+    metadata_filters: dict,
+) -> ExecutionPlan:
 
     prompt = f"""
-{QUERY_UNDERSTANDING_PROMPT}
+{PLANNING_PROMPT}
 
-User Question:
+Question:
 {question}
+
+Intent:
+{intent}
+
+Metadata Filters:
+{json.dumps(metadata_filters, indent=2)}
 """
 
     response = requests.post(
@@ -38,4 +48,4 @@ User Question:
 
     data = json.loads(result)
 
-    return QueryUnderstandingResult.model_validate(data)
+    return ExecutionPlan.model_validate(data)

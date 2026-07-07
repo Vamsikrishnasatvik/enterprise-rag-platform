@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 class RetrieverAgent(BaseAgent):
     """
-    Phase 3.1
-
     Retrieves relevant chunks and builds context.
     """
 
@@ -28,12 +26,44 @@ class RetrieverAgent(BaseAgent):
 
         logger.info("RetrieverAgent started")
 
+        # Initialize runtime state if missing
+        state.setdefault("execution_trace", [])
+        state.setdefault("metadata_filters", {})
+        state.setdefault("retrieved_chunks", [])
+        state.setdefault("execution_plan", {})
+        state.setdefault("search_limit", 3)
+        state.setdefault("retrieval_strategy", "semantic")
+
         query = (
             state["rewritten_query"]
             or state["question"]
         )
 
-        results = search_chunks(query)
+        execution_plan = state["execution_plan"]
+
+        limit = execution_plan.get(
+            "retrieval_count",
+            state["search_limit"],
+        )
+
+        filters = state["metadata_filters"]
+
+        strategy = execution_plan.get(
+            "search_strategy",
+            state["retrieval_strategy"],
+        )
+
+        logger.info(
+            "Retrieval strategy: %s | limit: %d",
+            strategy,
+            limit,
+        )
+
+        results = search_chunks(
+            query=query,
+            limit=limit,
+            metadata_filters=filters,
+        )
 
         context = build_context(results)
 
@@ -56,7 +86,9 @@ class RetrieverAgent(BaseAgent):
             {
                 "agent": "RetrieverAgent",
                 "status": "completed",
-                "chunks_retrieved": len(retrieved_chunks),
+                "chunks_retrieved": len(
+                    retrieved_chunks
+                ),
             }
         )
 

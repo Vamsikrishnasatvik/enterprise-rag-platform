@@ -22,19 +22,53 @@ def answer_question(
         "tenant_id": 0,
         "user_id": 0,
         "conversation_id": None,
+
+        # Query Understanding
         "rewritten_query": None,
         "intent": None,
         "entities": [],
+
+        # Planning
         "metadata_filters": {},
-        "execution_plan": {},
+
+        "execution_plan": {
+            "search_strategy": "semantic",
+            "retrieval_count": 3,
+            "use_metadata_filters": False,
+            "use_memory": False,
+            "requires_reranking": False,
+            "requires_verification": False,
+            "multi_document": False,
+        },
+
+        # Retrieval Configuration
+        "search_limit": 3,
+        "use_metadata_filters": False,
+        "retrieval_strategy": "semantic",
+
+        # Retrieval
         "retrieved_chunks": [],
         "context": None,
+
+        # Verification
         "confidence_score": 0.0,
         "needs_retry": False,
+
+        "verification_reason": None,
+        "retrieval_attempts": 1,
+        "max_retrieval_attempts": 2,
+
+        # Final Response
         "answer": None,
         "citations": [],
+
+        # Monitoring
         "execution_trace": [],
+        
     }
+
+    print("INITIAL STATE:")
+    print(initial_state)
 
     final_state = graph.invoke(initial_state)
     print(final_state["execution_trace"])

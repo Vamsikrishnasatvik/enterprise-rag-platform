@@ -28,9 +28,11 @@ class GraphState(TypedDict):
     execution_plan: Dict[str, Any]
 
     # ==========================
-    # Retrieval
+    # Retrieval Configuration
     # ==========================
-    retrieved_chunks: List[Dict[str, Any]]
+    search_limit: int
+    use_metadata_filters: bool
+    retrieval_strategy: str
 
     # ==========================
     # Retrieval
@@ -43,6 +45,10 @@ class GraphState(TypedDict):
     # ==========================
     confidence_score: float
     needs_retry: bool
+    verification_reason: Optional[str]
+
+    retrieval_attempts: int
+    max_retrieval_attempts: int
 
     # ==========================
     # Final Response
