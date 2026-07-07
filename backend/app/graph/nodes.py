@@ -10,13 +10,13 @@ retriever_agent = RetrieverAgent()
 answer_agent = AnswerAgent()
 
 
-async def query_node(state: GraphState) -> GraphState:
-    return await query_agent.run(state)
+def query_node(state: GraphState) -> GraphState:
+    return query_agent.run(state)
 
 
-async def retriever_node(state: GraphState) -> GraphState:
-    return await retriever_agent.run(state)
+def retriever_node(state: GraphState) -> GraphState:
+    return retriever_agent.run(state)
 
 
-async def answer_node(state: GraphState) -> GraphState:
-    return await answer_agent.run(state)
+def answer_node(state: GraphState) -> GraphState:
+    return answer_agent.run(state)

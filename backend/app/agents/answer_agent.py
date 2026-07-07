@@ -1,3 +1,5 @@
+import logging
+
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
@@ -5,16 +7,17 @@ from app.services.llm_service import (
     generate_answer,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class AnswerAgent(BaseAgent):
-    async def run(
+
+    def run(
         self,
         state: GraphState,
     ) -> GraphState:
 
-        state["execution_trace"].append(
-            "AnswerAgent"
-        )
+        logger.info("AnswerAgent started")
 
         answer = generate_answer(
             question=state["question"],
@@ -22,5 +25,14 @@ class AnswerAgent(BaseAgent):
         )
 
         state["answer"] = answer
+
+        state["execution_trace"].append(
+            {
+                "agent": "AnswerAgent",
+                "status": "completed",
+            }
+        )
+
+        logger.info("AnswerAgent completed")
 
         return state

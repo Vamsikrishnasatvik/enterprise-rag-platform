@@ -11,38 +11,37 @@ from app.services.message_service import (
     build_chat_history,
 )
 
+from app.graph.graph_builder import graph
+
 
 def answer_question(
     question: str,
 ):
-    results = search_chunks(
-        question
-    )
+    initial_state = {
+        "question": question,
+        "tenant_id": 0,
+        "user_id": 0,
+        "conversation_id": None,
+        "rewritten_query": None,
+        "intent": None,
+        "entities": [],
+        "metadata_filters": {},
+        "execution_plan": {},
+        "retrieved_chunks": [],
+        "context": None,
+        "confidence_score": 0.0,
+        "needs_retry": False,
+        "answer": None,
+        "citations": [],
+        "execution_trace": [],
+    }
 
-    context = build_context(
-        results
-    )
-
-    answer = generate_answer(
-        question,
-        context,
-    )
-
-    sources = []
-
-    for result in results:
-        sources.append(
-            {
-                "chunk_id": result.payload["chunk_id"],
-                "document_id": result.payload["document_id"],
-                "content": result.payload["content"],
-                "score": result.score,
-            }
-        )
+    final_state = graph.invoke(initial_state)
+    print(final_state["execution_trace"])
 
     return {
-        "answer": answer,
-        "sources": sources,
+        "answer": final_state["answer"],
+        "sources": final_state["retrieved_chunks"],
     }
 
 

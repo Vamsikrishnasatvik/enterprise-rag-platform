@@ -1,5 +1,9 @@
+import logging
+
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
+
+logger = logging.getLogger(__name__)
 
 
 class QueryAgent(BaseAgent):
@@ -15,16 +19,22 @@ class QueryAgent(BaseAgent):
     - Metadata Extraction
     """
 
-    async def run(
+    def run(
         self,
         state: GraphState,
     ) -> GraphState:
 
+        logger.info("QueryAgent started")
+
         state["execution_trace"].append(
-            "QueryAgent"
+            {
+                "agent": "QueryAgent",
+                "status": "completed",
+            }
         )
 
-        # No processing in v3.1
         state["rewritten_query"] = state["question"]
+
+        logger.info("QueryAgent completed")
 
         return state

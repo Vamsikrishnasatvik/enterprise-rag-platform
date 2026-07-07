@@ -1,3 +1,5 @@
+import logging
+
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
@@ -9,6 +11,8 @@ from app.services.context_service import (
     build_context,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class RetrieverAgent(BaseAgent):
     """
@@ -17,14 +21,12 @@ class RetrieverAgent(BaseAgent):
     Retrieves relevant chunks and builds context.
     """
 
-    async def run(
+    def run(
         self,
         state: GraphState,
     ) -> GraphState:
 
-        state["execution_trace"].append(
-            "RetrieverAgent"
-        )
+        logger.info("RetrieverAgent started")
 
         query = (
             state["rewritten_query"]
@@ -49,5 +51,18 @@ class RetrieverAgent(BaseAgent):
 
         state["retrieved_chunks"] = retrieved_chunks
         state["context"] = context
+
+        state["execution_trace"].append(
+            {
+                "agent": "RetrieverAgent",
+                "status": "completed",
+                "chunks_retrieved": len(retrieved_chunks),
+            }
+        )
+
+        logger.info(
+            "RetrieverAgent completed - %d chunks retrieved",
+            len(retrieved_chunks),
+        )
 
         return state

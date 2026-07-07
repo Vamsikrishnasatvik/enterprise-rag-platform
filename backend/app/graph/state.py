@@ -53,4 +53,4 @@ class GraphState(TypedDict):
     # ==========================
     # Debugging / Monitoring
     # ==========================
-    execution_trace: List[str]
+    execution_trace: List[Dict[str, Any]]

@@ -56,7 +56,7 @@ ANSWER:
     f"{settings.OLLAMA_BASE_URL}/api/generate",
     json={
         "model": settings.OLLAMA_MODEL,
-        "prompt": question,
+        "prompt": prompt,
         "stream": False,
     },
     timeout=120,

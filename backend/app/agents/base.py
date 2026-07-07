@@ -9,7 +9,7 @@ class BaseAgent(ABC):
     """
 
     @abstractmethod
-    async def run(self, state: GraphState) -> GraphState:
+    def run(self, state: GraphState) -> GraphState:
         """
         Process the graph state and return the updated state.
         """
