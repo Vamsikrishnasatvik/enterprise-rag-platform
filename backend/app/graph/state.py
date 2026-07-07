@@ -33,6 +33,12 @@ class GraphState(TypedDict):
     retrieved_chunks: List[Dict[str, Any]]
 
     # ==========================
+    # Retrieval
+    # ==========================
+    retrieved_chunks: List[Dict[str, Any]]
+    context: Optional[str]
+
+    # ==========================
     # Verification
     # ==========================
     confidence_score: float
