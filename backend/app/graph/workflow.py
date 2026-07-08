@@ -7,12 +7,14 @@ from app.graph.router import (
 from app.graph.state import GraphState
 from app.graph.nodes import (
     query_node,
+    memory_node,
     planner_node,
     retriever_node,
     reranker_node,
     verifier_node,
     evidence_node, 
     answer_node,
+    
 )
 
 
@@ -23,6 +25,11 @@ def create_workflow():
     workflow.add_node(
         "query",
         query_node,
+    )
+
+    workflow.add_node(
+        "memory",
+        memory_node,
     )
 
     workflow.add_node(
@@ -50,6 +57,7 @@ def create_workflow():
         answer_node,
     )
 
+
     workflow.add_node(
         "verifier",
         verifier_node,
@@ -62,6 +70,11 @@ def create_workflow():
 
     workflow.add_edge(
         "query",
+        "memory",
+    )
+
+    workflow.add_edge(
+        "memory",
         "planner",
     )
 

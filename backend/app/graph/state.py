@@ -17,6 +17,7 @@ class GraphState(TypedDict):
     # ==========================
     # Query Understanding
     # ==========================
+    conversation_history: list
     rewritten_query: Optional[str]
     intent: Optional[str]
     entities: List[Dict[str, Any]]

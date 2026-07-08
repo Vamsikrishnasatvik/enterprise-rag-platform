@@ -12,12 +12,17 @@ def verify_retrieval(
     context: str | None,
 ) -> VerificationResult:
     """
-    Rule-based verifier.
+    Rule-based retrieval verifier.
 
-    Later this will become an LLM-based verifier.
+    Confidence is based on:
+    - retrieval scores
+    - number of retrieved chunks
+    - context size
+
+    This produces a more realistic confidence than
+    simply checking context length.
     """
 
-    # No retrieval
     if not retrieved_chunks:
         return VerificationResult(
             confidence_score=0.0,
@@ -25,10 +30,9 @@ def verify_retrieval(
             verification_reason="No chunks retrieved.",
         )
 
-    # Empty context
-    if not context:
+    if not context or not context.strip():
         return VerificationResult(
-            confidence_score=0.1,
+            confidence_score=0.05,
             needs_retry=True,
             verification_reason="Context is empty.",
         )
@@ -36,24 +40,65 @@ def verify_retrieval(
     chunk_count = len(retrieved_chunks)
     context_length = len(context.strip())
 
-    confidence = min(
-        1.0,
-        (
-            chunk_count / 5
-            + min(context_length / 3000, 1.0)
-        )
-        / 2,
+    scores = [
+        chunk.get("score", 0.0)
+        for chunk in retrieved_chunks
+    ]
+
+    average_score = (
+        sum(scores) / len(scores)
+        if scores
+        else 0.0
     )
 
-    if confidence < 0.80:
+    top_score = max(scores) if scores else 0.0
+
+    retrieval_component = average_score
+
+    chunk_component = min(
+        chunk_count / 5,
+        1.0,
+    )
+
+    context_component = min(
+        context_length / 2500,
+        1.0,
+    )
+
+    confidence = (
+        retrieval_component * 0.60
+        + chunk_component * 0.20
+        + context_component * 0.20
+    )
+
+    confidence = round(confidence, 3)
+
+    if confidence >= 0.90:
         return VerificationResult(
             confidence_score=confidence,
-            needs_retry=True,
-            verification_reason="Low confidence. Retry retrieval.",
+            needs_retry=False,
+            verification_reason="Excellent retrieval quality.",
+        )
+
+    if confidence >= 0.80:
+        return VerificationResult(
+            confidence_score=confidence,
+            needs_retry=False,
+            verification_reason="Context appears sufficient.",
+        )
+
+    if (
+        top_score >= 0.85
+        and chunk_count >= 3
+    ):
+        return VerificationResult(
+            confidence_score=confidence,
+            needs_retry=False,
+            verification_reason="Strong top match found.",
         )
 
     return VerificationResult(
         confidence_score=confidence,
-        needs_retry=False,
-        verification_reason="Context appears sufficient.",
+        needs_retry=True,
+        verification_reason="Low retrieval confidence. Retry recommended.",
     )

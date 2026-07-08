@@ -4,6 +4,7 @@ from app.services.embedding_service import (
     generate_embeddings,
 )
 
+
 logger = logging.getLogger(__name__)
 
 

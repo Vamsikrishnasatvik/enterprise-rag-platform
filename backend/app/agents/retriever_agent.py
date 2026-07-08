@@ -12,10 +12,13 @@ logger = logging.getLogger(__name__)
 
 class RetrieverAgent(BaseAgent):
     """
-    Retrieves relevant chunks only.
+    Phase 3.7
 
-    Phase 3.5:
-    Context construction is handled by the RerankerAgent.
+    Retrieves relevant chunks using the rewritten
+    query when available.
+
+    Context construction is handled by the
+    RerankerAgent.
     """
 
     def run(
@@ -47,10 +50,14 @@ class RetrieverAgent(BaseAgent):
 
         # Adaptive retry
         if state["retrieval_attempts"] >= 1:
-            limit += 2 * state["retrieval_attempts"]
+
+            limit += (
+                2 * state["retrieval_attempts"]
+            )
 
             logger.info(
-                "Retry retrieval detected. Increasing limit to %d",
+                "Retry retrieval detected. "
+                "Increasing limit to %d",
                 limit,
             )
 
@@ -59,6 +66,11 @@ class RetrieverAgent(BaseAgent):
         strategy = execution_plan.get(
             "search_strategy",
             state["retrieval_strategy"],
+        )
+
+        logger.info(
+            "Retriever query: %s",
+            query,
         )
 
         logger.info(
@@ -76,22 +88,34 @@ class RetrieverAgent(BaseAgent):
         retrieved_chunks = []
 
         for result in results:
+
             retrieved_chunks.append(
                 {
                     "chunk_id": result.payload["chunk_id"],
                     "document_id": result.payload["document_id"],
                     "content": result.payload["content"],
                     "score": result.score,
+                    "page_number": result.payload.get(
+                        "page_number"
+                    ),
+                    "section": result.payload.get(
+                        "section"
+                    ),
                 }
             )
 
-        state["retrieved_chunks"] = retrieved_chunks
+        state["retrieved_chunks"] = (
+            retrieved_chunks
+        )
 
         state["execution_trace"].append(
             {
                 "agent": "RetrieverAgent",
                 "status": "completed",
-                "chunks_retrieved": len(retrieved_chunks),
+                "query": query,
+                "chunks_retrieved": len(
+                    retrieved_chunks
+                ),
                 "retrieval_attempt": state[
                     "retrieval_attempts"
                 ],

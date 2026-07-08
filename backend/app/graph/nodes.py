@@ -7,7 +7,7 @@ from app.agents.reranker_agent import RerankerAgent
 from app.agents.verifier_agent import VerifierAgent
 from app.agents.evidence_agent import EvidenceAgent
 from app.agents.answer_agent import AnswerAgent
-
+from app.agents.memory_agent import MemoryAgent
 
 query_agent = QueryAgent()
 planner_agent = PlannerAgent()
@@ -16,7 +16,7 @@ reranker_agent = RerankerAgent()
 verifier_agent = VerifierAgent()
 evidence_agent = EvidenceAgent()
 answer_agent = AnswerAgent()
-
+memory_agent = MemoryAgent()
 
 def query_node(
     state: GraphState,
@@ -58,3 +58,8 @@ def answer_node(
     state: GraphState,
 ) -> GraphState:
     return answer_agent.run(state)
+
+def memory_node(
+    state: GraphState,
+) -> GraphState:
+    return memory_agent.run(state)

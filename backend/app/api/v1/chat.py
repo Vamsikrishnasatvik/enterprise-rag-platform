@@ -19,5 +19,6 @@ def query_documents(
     request: ChatRequest,
 ):
     return answer_question(
-        request.query
+        question=request.query,
+        conversation_id=request.conversation_id,
     )
