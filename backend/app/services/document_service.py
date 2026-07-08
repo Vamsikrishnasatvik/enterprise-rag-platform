@@ -25,3 +25,23 @@ def create_document(
     db.refresh(document)
 
     return document
+
+
+def get_document_name(
+    db: Session,
+    document_id: int,
+) -> str | None:
+    """
+    Return the filename for a document.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id)
+        .first()
+    )
+
+    if not document:
+        return None
+
+    return document.filename

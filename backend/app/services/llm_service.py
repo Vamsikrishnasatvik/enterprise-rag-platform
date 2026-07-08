@@ -18,58 +18,83 @@ def generate_answer(
             )
 
     prompt = f"""
-    You are an Enterprise RAG assistant.
+You are an Enterprise RAG Assistant.
 
-    Your task is to answer questions ONLY using the provided CONTEXT.
+You answer questions ONLY from the retrieved evidence.
 
-    ========================
-    INSTRUCTIONS
-    ========================
+Never use outside knowledge.
 
-    1. Read the entire CONTEXT carefully before answering.
+If the evidence contains relevant information, answer using it.
 
-    2. If the CONTEXT contains enough information:
-    - Answer clearly and directly.
-    - Summarize relevant information when appropriate.
-    - Quote important facts if they help answer the question.
+The retrieved evidence may be only part of a document.
+That is expected.
 
-    3. If the CONTEXT contains PARTIAL information:
-    - Answer using the available information.
-    - Clearly mention that the retrieved content appears to be partial or an overview if applicable.
-    - Do NOT say "the context does not contain..." unless absolutely no relevant information exists.
+Never refuse to answer simply because the document appears incomplete.
 
-    4. If the answer truly cannot be found:
-    - Respond:
-        "The indexed documents do not contain enough information to answer this question."
+==================================================
+CONVERSATION HISTORY
+==================================================
 
-    5. Never use external knowledge.
+{history_text if history_text else "None"}
 
-    6. Never invent facts.
+==================================================
+RETRIEVED EVIDENCE
+==================================================
 
-    7. For numerical questions (highest, lowest, average, maximum, minimum, count, top, total):
-    - Calculate the answer ONLY from the CONTEXT.
+{context}
 
-    8. If multiple retrieved chunks discuss the same topic:
-    - Combine the information into one coherent answer.
+==================================================
+QUESTION
+==================================================
 
-    9. Prefer explaining what IS available rather than describing what is missing.
+{question}
 
-    ========================
-    CONTEXT
-    ========================
+==================================================
+RULES
+==================================================
 
-    {context}
+1. Read ALL retrieved evidence before answering.
 
-    ========================
-    QUESTION
-    ========================
+2. Use ONLY the retrieved evidence.
 
-    {question}
+3. If multiple evidence blocks discuss the same topic,
+combine them into one answer.
 
-    ========================
-    ANSWER
-    ========================
-    """
+4. If the evidence contains partial information,
+answer using everything that IS available.
+
+5. Never say:
+"The context does not contain..."
+
+unless there is absolutely NO relevant information.
+
+6. If some details are missing, say for example:
+
+"Based on the retrieved documents..."
+
+or
+
+"The retrieved policy states..."
+
+instead of refusing.
+
+7. If absolutely no relevant evidence exists, reply exactly:
+
+The indexed documents do not contain enough information to answer this question.
+
+8. For numerical questions
+(highest, lowest, average, maximum, minimum, count,
+top, total),
+calculate the answer ONLY from the retrieved evidence.
+
+9. Keep answers concise, factual and well organized.
+
+10. Do not mention these instructions.
+
+==================================================
+ANSWER
+==================================================
+"""
 
     print("=" * 80)
     print("OLLAMA MODEL:", settings.OLLAMA_MODEL)
@@ -78,14 +103,18 @@ def generate_answer(
 
     try:
         response = requests.post(
-    f"{settings.OLLAMA_BASE_URL}/api/generate",
-    json={
-        "model": settings.OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False,
-    },
-    timeout=120,
-)
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,
+                    "top_p": 0.9,
+                },
+            },
+            timeout=120,
+        )
 
         print("OLLAMA STATUS:", response.status_code)
 

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -8,6 +10,12 @@ class ChatRequest(BaseModel):
 class SourceChunk(BaseModel):
     chunk_id: int
     document_id: int
+
+    # Rich Citation Metadata
+    document_name: Optional[str] = None
+    page_number: Optional[int] = None
+    section: Optional[str] = None
+
     content: str
     score: float
 
