@@ -8,7 +8,15 @@ def create_document_chunks(
     db: Session,
     document_id: int,
     chunks: list[str],
+    metadata: dict | None = None,
 ):
+    """
+    Create DocumentChunk records.
+
+    Each chunk inherits the document-level metadata
+    extracted during ingestion.
+    """
+
     document = (
         db.query(Document)
         .filter(Document.id == document_id)
@@ -20,15 +28,18 @@ def create_document_chunks(
             "Document not found"
         )
 
+    metadata = metadata or {}
+
     records = []
 
     for index, chunk in enumerate(chunks):
+
         record = DocumentChunk(
             tenant_id=document.tenant_id,
             document_id=document_id,
             chunk_index=index,
             content=chunk,
-            chunk_metadata={},
+            chunk_metadata=metadata,
         )
 
         records.append(record)

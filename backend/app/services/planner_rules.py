@@ -27,6 +27,52 @@ def apply_planner_rules(
         plan.use_memory = True
 
     # ----------------------------
+    # Retrieval Strategy
+    # ----------------------------
+
+    keyword_queries = [
+        "faq",
+        "section",
+        "appendix",
+        "document id",
+        "policy number",
+        "version",
+        "code",
+    ]
+
+    semantic_queries = [
+        "explain",
+        "why",
+        "how",
+        "compare",
+        "difference",
+        "overview",
+        "benefits",
+    ]
+
+    if any(
+        keyword in question_lower
+        for keyword in keyword_queries
+    ):
+
+        plan.search_strategy = "bm25"
+
+    elif any(
+        keyword in question_lower
+        for keyword in semantic_queries
+    ):
+
+        plan.search_strategy = "semantic"
+
+    else:
+
+        plan.search_strategy = "hybrid"
+
+    plan.use_hybrid_search = (
+        plan.search_strategy == "hybrid"
+    )
+
+    # ----------------------------
     # Policy Questions
     # ----------------------------
 

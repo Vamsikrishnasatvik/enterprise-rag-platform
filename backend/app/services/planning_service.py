@@ -12,6 +12,10 @@ from app.schemas.execution_plan import (
     ExecutionPlan,
 )
 
+from app.services.planner_rules import (
+    apply_planner_rules,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,17 +68,27 @@ Metadata Filters:
 
         data = json.loads(result)
 
-        return ExecutionPlan.model_validate(data)
+        plan = ExecutionPlan.model_validate(
+            data
+        )
 
-    except Exception as e:
+        plan = apply_planner_rules(
+            plan=plan,
+            question=question,
+            history_length=0,  # Will be dynamic later
+        )
+
+        return plan
+
+    except Exception:
 
         logger.exception(
             "Planner failed. Using default execution plan."
         )
 
-        return ExecutionPlan(
+        plan = ExecutionPlan(
             intent=intent or "general",
-            search_strategy="semantic",
+            search_strategy="hybrid",
             retrieval_count=3,
             use_memory=False,
             use_metadata_filters=False,
@@ -82,7 +96,13 @@ Metadata Filters:
             requires_reranking=True,
             requires_verification=True,
             multi_document=False,
-            use_hybrid_search=False,
+            use_hybrid_search=True,
             use_query_expansion=False,
             use_summary_memory=False,
+        )
+
+        return apply_planner_rules(
+            plan=plan,
+            question=question,
+            history_length=0,
         )

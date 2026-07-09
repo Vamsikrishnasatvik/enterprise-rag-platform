@@ -34,31 +34,75 @@ def create_collection():
         ),
     )
 
-
 def upsert_chunks(
     chunk_records,
     embeddings,
 ):
+    """
+    Store document chunks in Qdrant.
+
+    Rich metadata is flattened into the payload
+    for efficient filtering while preserving the
+    original metadata object.
+    """
+
     points = []
 
     for chunk, vector in zip(
         chunk_records,
         embeddings,
     ):
+
+        metadata = (
+            chunk.chunk_metadata
+            or {}
+        )
+
+        payload = {
+            "tenant_id": chunk.tenant_id,
+            "chunk_id": chunk.id,
+            "document_id": chunk.document_id,
+            "content": chunk.content,
+
+            # Rich metadata fields
+            "department": metadata.get(
+                "department",
+                "",
+            ),
+            "document_type": metadata.get(
+                "document_type",
+                "",
+            ),
+            "version": metadata.get(
+                "version",
+                "",
+            ),
+            "effective_date": metadata.get(
+                "effective_date",
+                "",
+            ),
+            "owner": metadata.get(
+                "owner",
+                "",
+            ),
+            "classification": metadata.get(
+                "classification",
+                "",
+            ),
+            "tags": metadata.get(
+                "tags",
+                [],
+            ),
+
+            # Keep original metadata
+            "metadata": metadata,
+        }
+
         points.append(
             PointStruct(
                 id=chunk.id,
                 vector=vector,
-                payload={
-                    "tenant_id": chunk.tenant_id,
-                    "chunk_id": chunk.id,
-                    "document_id": chunk.document_id,
-                    "content": chunk.content,
-                    "metadata": (
-                        chunk.chunk_metadata
-                        or {}
-                    ),
-                },
+                payload=payload,
             )
         )
 

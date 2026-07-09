@@ -1,3 +1,4 @@
+#ingestion_service.py
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
@@ -15,7 +16,9 @@ from app.services.vector_service import (
     create_collection,
     upsert_chunks,
 )
-
+from app.services.metadata_extraction_service import (
+    extract_metadata,
+)
 
 def process_document(
     db: Session,
@@ -58,6 +61,11 @@ def process_document(
             document.file_type,
         )
 
+        # Extract metadata once per document
+        metadata = extract_metadata(
+            parsed
+        )
+
         chunks = chunk_document(
             parsed
         )
@@ -67,6 +75,7 @@ def process_document(
                 db=db,
                 document_id=document.id,
                 chunks=chunks,
+                metadata=metadata,
             )
         )
 

@@ -3,8 +3,8 @@ import logging
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
-from app.services.retrieval_service import (
-    search_chunks,
+from app.services.retrieval_orchestrator import (
+    retrieve_documents,
 )
 
 logger = logging.getLogger(__name__)
@@ -12,13 +12,15 @@ logger = logging.getLogger(__name__)
 
 class RetrieverAgent(BaseAgent):
     """
-    Phase 3.7
+    Phase 4
 
-    Retrieves relevant chunks using the rewritten
-    query when available.
+    Retrieves relevant chunks using the strategy
+    selected by the PlannerAgent.
 
-    Context construction is handled by the
-    RerankerAgent.
+    Supports:
+    - Semantic Search
+    - BM25 Search
+    - Hybrid Search
     """
 
     def run(
@@ -33,8 +35,14 @@ class RetrieverAgent(BaseAgent):
         state.setdefault("retrieved_chunks", [])
         state.setdefault("execution_plan", {})
         state.setdefault("search_limit", 3)
-        state.setdefault("retrieval_strategy", "semantic")
-        state.setdefault("retrieval_attempts", 0)
+        state.setdefault(
+            "retrieval_strategy",
+            "semantic",
+        )
+        state.setdefault(
+            "retrieval_attempts",
+            0,
+        )
 
         query = (
             state["rewritten_query"]
@@ -52,7 +60,8 @@ class RetrieverAgent(BaseAgent):
         if state["retrieval_attempts"] >= 1:
 
             limit += (
-                2 * state["retrieval_attempts"]
+                2
+                * state["retrieval_attempts"]
             )
 
             logger.info(
@@ -60,8 +69,6 @@ class RetrieverAgent(BaseAgent):
                 "Increasing limit to %d",
                 limit,
             )
-
-        filters = state["metadata_filters"]
 
         strategy = execution_plan.get(
             "search_strategy",
@@ -79,34 +86,18 @@ class RetrieverAgent(BaseAgent):
             limit,
         )
 
-        results = search_chunks(
-            query=query,
+        results = retrieve_documents(
+            question=query,
+            tenant_id=state["tenant_id"],
             limit=limit,
-            metadata_filters=filters,
+            strategy=strategy,
+            metadata_filters=state[
+                "metadata_filters"
+            ],
         )
 
-        retrieved_chunks = []
-
-        for result in results:
-
-            retrieved_chunks.append(
-                {
-                    "chunk_id": result.payload["chunk_id"],
-                    "document_id": result.payload["document_id"],
-                    "content": result.payload["content"],
-                    "score": result.score,
-                    "page_number": result.payload.get(
-                        "page_number"
-                    ),
-                    "section": result.payload.get(
-                        "section"
-                    ),
-                }
-            )
-
-        state["retrieved_chunks"] = (
-            retrieved_chunks
-        )
+        # Results are already normalized
+        state["retrieved_chunks"] = results
 
         state["execution_trace"].append(
             {
@@ -114,18 +105,19 @@ class RetrieverAgent(BaseAgent):
                 "status": "completed",
                 "query": query,
                 "chunks_retrieved": len(
-                    retrieved_chunks
+                    results
                 ),
                 "retrieval_attempt": state[
                     "retrieval_attempts"
                 ],
                 "search_limit": limit,
+                "strategy": strategy,
             }
         )
 
         logger.info(
             "RetrieverAgent completed - %d chunks retrieved",
-            len(retrieved_chunks),
+            len(results),
         )
 
         return state
