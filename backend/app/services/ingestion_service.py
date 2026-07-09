@@ -1,5 +1,5 @@
-#ingestion_service.py
 from sqlalchemy.orm import Session
+import traceback
 
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
@@ -20,15 +20,26 @@ from app.services.metadata_extraction_service import (
     extract_metadata,
 )
 
+
 def process_document(
     db: Session,
     document_id: int,
 ):
+    """
+    Process a document through the ingestion pipeline.
+
+    Pipeline:
+    - Parse document
+    - Extract metadata
+    - Chunk document
+    - Store chunks
+    - Generate embeddings
+    - Index into Qdrant
+    """
+
     document = (
         db.query(Document)
-        .filter(
-            Document.id == document_id
-        )
+        .filter(Document.id == document_id)
         .first()
     )
 
@@ -41,6 +52,7 @@ def process_document(
         return document
 
     try:
+
         document.status = "PROCESSING"
         db.commit()
         db.refresh(document)
@@ -56,19 +68,34 @@ def process_document(
 
         db.commit()
 
+        # -----------------------------
+        # Parse document
+        # -----------------------------
+
         parsed = parse_document(
             document.storage_path,
             document.file_type,
         )
 
-        # Extract metadata once per document
+        # -----------------------------
+        # Extract document metadata
+        # -----------------------------
+
         metadata = extract_metadata(
-            parsed
+            parsed.text
         )
+
+        # -----------------------------
+        # Chunk document
+        # -----------------------------
 
         chunks = chunk_document(
             parsed
         )
+
+        # -----------------------------
+        # Persist chunks
+        # -----------------------------
 
         chunk_records = (
             create_document_chunks(
@@ -79,11 +106,17 @@ def process_document(
             )
         )
 
-        embeddings = (
-            generate_embeddings(
-                chunks
-            )
+        # -----------------------------
+        # Generate embeddings
+        # -----------------------------
+
+        embeddings = generate_embeddings(
+            chunks
         )
+
+        # -----------------------------
+        # Index into Qdrant
+        # -----------------------------
 
         create_collection()
 
@@ -100,6 +133,9 @@ def process_document(
         return document
 
     except Exception:
+
+        traceback.print_exc()
+
         db.rollback()
 
         document.status = "FAILED"

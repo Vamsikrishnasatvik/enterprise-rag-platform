@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 
-from app.models.document_chunk import DocumentChunk
 from app.models.document import Document
+from app.models.document_chunk import (
+    DocumentChunk,
+)
 
 
 def create_document_chunks(
@@ -13,13 +15,16 @@ def create_document_chunks(
     """
     Create DocumentChunk records.
 
-    Each chunk inherits the document-level metadata
-    extracted during ingestion.
+    Each chunk inherits the
+    document-level metadata extracted
+    during ingestion.
     """
 
     document = (
         db.query(Document)
-        .filter(Document.id == document_id)
+        .filter(
+            Document.id == document_id
+        )
         .first()
     )
 

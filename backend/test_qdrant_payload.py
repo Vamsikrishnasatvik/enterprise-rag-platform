@@ -1,13 +1,20 @@
 from app.services.vector_service import client
 
-results = client.scroll(
+points, _ = client.scroll(
     collection_name="document_chunks",
-    limit=1,
+    limit=3000,
     with_payload=True,
 )
 
-point = results[0][0]
+found = False
 
-print("=" * 80)
-print(point.payload)
-print("=" * 80)
+for point in points:
+    if point.payload["document_id"] == 24:
+        found = True
+        print("=" * 80)
+        print(point.payload)
+        print("=" * 80)
+        break
+
+if not found:
+    print("Document 24 not found.")

@@ -3,13 +3,15 @@ from app.models.document_chunk import DocumentChunk
 
 db = SessionLocal()
 
-chunk = (
+chunks = (
     db.query(DocumentChunk)
-    .first()
+    .filter(DocumentChunk.document_id == 24)
+    .limit(3)
+    .all()
 )
 
-print("=" * 80)
-print(chunk.chunk_metadata)
-print("=" * 80)
+for chunk in chunks:
+    print("=" * 80)
+    print(chunk.chunk_metadata)
 
 db.close()
