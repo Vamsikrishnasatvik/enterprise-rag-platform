@@ -10,6 +10,10 @@ from app.services.fusion_service import (
     reciprocal_rank_fusion,
 )
 
+from app.services.multi_query_service import (
+    generate_multi_queries,
+)
+
 
 def retrieve_documents(
     *,
@@ -25,7 +29,8 @@ def retrieve_documents(
     Supports:
     - semantic
     - bm25
-    - hybrid (Semantic + BM25 + RRF)
+    - hybrid
+    - multi_query
     """
 
     if strategy == "semantic":
@@ -67,6 +72,31 @@ def retrieve_documents(
                 semantic_results,
                 lexical_results,
             ]
+        )
+
+    if strategy == "multi_query":
+
+        queries = generate_multi_queries(
+            question=question,
+        )
+
+        result_sets = []
+
+        for query in queries:
+
+            results = search_chunks(
+                query=query,
+                tenant_id=tenant_id,
+                limit=limit,
+                metadata_filters=metadata_filters,
+            )
+
+            result_sets.append(
+                results
+            )
+
+        return reciprocal_rank_fusion(
+            result_sets
         )
 
     raise ValueError(

@@ -9,15 +9,19 @@ from app.services.planning_service import (
 from app.services.planner_rules import (
     apply_planner_rules,
 )
+from app.services.self_query_service import (
+    generate_self_query,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class PlannerAgent(BaseAgent):
     """
-    Phase 3
+    Planner Agent
 
-    Creates the execution plan for retrieval.
+    Responsible for creating the execution plan
+    used by the retrieval pipeline.
     """
 
     def run(
@@ -27,12 +31,53 @@ class PlannerAgent(BaseAgent):
 
         logger.info("PlannerAgent started")
 
-        state.setdefault("execution_trace", [])
+        state.setdefault(
+            "execution_trace",
+            [],
+        )
+
+        # --------------------------------------------------
+        # Start with rewritten query if available
+        # --------------------------------------------------
 
         query = (
-            state["rewritten_query"]
+            state.get("rewritten_query")
             or state["question"]
         )
+
+        # --------------------------------------------------
+        # Self Query Retrieval
+        # --------------------------------------------------
+
+        self_query = generate_self_query(
+            question=query,
+        )
+
+        query = self_query.get(
+            "query",
+            query,
+        )
+
+        state.setdefault(
+            "metadata_filters",
+            {},
+        )
+
+        state["metadata_filters"].update(
+            self_query.get(
+                "metadata_filters",
+                {},
+            )
+        )
+
+        logger.info(
+            "Self Query Result: %s",
+            self_query,
+        )
+
+        # --------------------------------------------------
+        # Create execution plan
+        # --------------------------------------------------
 
         plan = create_execution_plan(
             question=query,
@@ -45,6 +90,10 @@ class PlannerAgent(BaseAgent):
             ),
         )
 
+        # --------------------------------------------------
+        # Apply deterministic planner rules
+        # --------------------------------------------------
+
         plan = apply_planner_rules(
             plan=plan,
             question=query,
@@ -56,12 +105,18 @@ class PlannerAgent(BaseAgent):
             ),
         )
 
-        # Store the complete execution plan
+        # --------------------------------------------------
+        # Store execution plan
+        # --------------------------------------------------
+
         state["execution_plan"] = (
             plan.model_dump()
         )
 
-        # Update graph state from planner decisions
+        # --------------------------------------------------
+        # Update graph state
+        # --------------------------------------------------
+
         state["intent"] = plan.intent
 
         state["search_limit"] = (
@@ -72,13 +127,22 @@ class PlannerAgent(BaseAgent):
             plan.use_metadata_filters
         )
 
-        state["metadata_filters"] = (
-            plan.metadata_filters
+        # Merge planner filters with self-query filters
+        planner_filters = (
+            plan.metadata_filters or {}
+        )
+
+        state["metadata_filters"].update(
+            planner_filters
         )
 
         state["retrieval_strategy"] = (
             plan.search_strategy
         )
+
+        # --------------------------------------------------
+        # Logging
+        # --------------------------------------------------
 
         logger.info(
             "Planner using query: %s",
@@ -90,11 +154,16 @@ class PlannerAgent(BaseAgent):
             plan.model_dump(),
         )
 
+        # --------------------------------------------------
+        # Execution trace
+        # --------------------------------------------------
+
         state["execution_trace"].append(
             {
                 "agent": "PlannerAgent",
                 "status": "completed",
                 "query": query,
+                "self_query": self_query,
                 "plan": plan.model_dump(),
             }
         )

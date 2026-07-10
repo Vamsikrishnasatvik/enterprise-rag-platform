@@ -22,3 +22,5 @@ email-validator
 rq
 langgraph
 langchain-core
+pytest
+pytest-cov

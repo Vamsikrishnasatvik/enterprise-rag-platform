@@ -26,7 +26,7 @@ def apply_planner_rules(
     if plan.intent == "follow_up":
         plan.use_memory = True
 
-    # ----------------------------
+        # ----------------------------
     # Retrieval Strategy
     # ----------------------------
 
@@ -41,13 +41,30 @@ def apply_planner_rules(
     ]
 
     semantic_queries = [
+        "what",
+        "who",
+        "when",
+        "where",
+        "define",
+    ]
+
+    multi_query_patterns = [
         "explain",
-        "why",
         "how",
+        "why",
         "compare",
         "difference",
-        "overview",
+        "advantages",
+        "disadvantages",
         "benefits",
+        "summarize",
+        "summary",
+        "process",
+        "workflow",
+        "steps",
+        "best practices",
+        "recommend",
+        "recommendation",
     ]
 
     if any(
@@ -56,6 +73,13 @@ def apply_planner_rules(
     ):
 
         plan.search_strategy = "bm25"
+
+    elif any(
+        keyword in question_lower
+        for keyword in multi_query_patterns
+    ):
+
+        plan.search_strategy = "multi_query"
 
     elif any(
         keyword in question_lower

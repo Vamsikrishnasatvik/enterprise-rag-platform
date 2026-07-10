@@ -7,6 +7,10 @@ from app.services.retrieval_orchestrator import (
     retrieve_documents,
 )
 
+from app.services.context_compression_service import (
+    compress_context,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +25,9 @@ class RetrieverAgent(BaseAgent):
     - Semantic Search
     - BM25 Search
     - Hybrid Search
+    - Multi Query Search
+
+    Automatically performs Context Compression.
     """
 
     def run(
@@ -45,7 +52,7 @@ class RetrieverAgent(BaseAgent):
         )
 
         query = (
-            state["rewritten_query"]
+            state.get("rewritten_query")
             or state["question"]
         )
 
@@ -56,7 +63,10 @@ class RetrieverAgent(BaseAgent):
             state["search_limit"],
         )
 
-        # Adaptive retry
+        # ----------------------------------------
+        # Adaptive Retry
+        # ----------------------------------------
+
         if state["retrieval_attempts"] >= 1:
 
             limit += (
@@ -86,6 +96,10 @@ class RetrieverAgent(BaseAgent):
             limit,
         )
 
+        # ----------------------------------------
+        # Retrieve Documents
+        # ----------------------------------------
+
         results = retrieve_documents(
             question=query,
             tenant_id=state["tenant_id"],
@@ -96,28 +110,61 @@ class RetrieverAgent(BaseAgent):
             ],
         )
 
-        # Results are already normalized
-        state["retrieved_chunks"] = results
+        retrieved_count = len(results)
+
+        logger.info(
+            "Retrieved %d chunks before compression",
+            retrieved_count,
+        )
+
+        # ----------------------------------------
+        # Context Compression
+        # ----------------------------------------
+
+        compressed_results = compress_context(
+            chunks=results,
+            max_chunks=limit,
+        )
+
+        compressed_count = len(
+            compressed_results
+        )
+
+        logger.info(
+            "Compressed context from %d to %d chunks",
+            retrieved_count,
+            compressed_count,
+        )
+
+        # ----------------------------------------
+        # Store Results
+        # ----------------------------------------
+
+        state["retrieved_chunks"] = (
+            compressed_results
+        )
+
+        # ----------------------------------------
+        # Execution Trace
+        # ----------------------------------------
 
         state["execution_trace"].append(
             {
                 "agent": "RetrieverAgent",
                 "status": "completed",
                 "query": query,
-                "chunks_retrieved": len(
-                    results
-                ),
+                "strategy": strategy,
                 "retrieval_attempt": state[
                     "retrieval_attempts"
                 ],
                 "search_limit": limit,
-                "strategy": strategy,
+                "chunks_before_compression": retrieved_count,
+                "chunks_after_compression": compressed_count,
             }
         )
 
         logger.info(
-            "RetrieverAgent completed - %d chunks retrieved",
-            len(results),
+            "RetrieverAgent completed"
         )
 
         return state

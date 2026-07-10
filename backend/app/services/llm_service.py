@@ -7,6 +7,48 @@ from app.prompts.answer_prompt import (
 )
 
 
+def generate_text(
+    prompt: str,
+    temperature: float = 0.1,
+) -> str:
+    """
+    Generic Ollama text generation.
+
+    Used by:
+    - Answer Agent
+    - Metadata Extraction
+    - Multi-Query Retrieval
+    - Query Expansion
+    - Future AI services
+    """
+
+    try:
+
+        response = requests.post(
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "top_p": 0.9,
+                },
+            },
+            timeout=120,
+        )
+
+        response.raise_for_status()
+
+        return response.json().get(
+            "response",
+            "",
+        ).strip()
+
+    except requests.exceptions.RequestException:
+        raise
+
+
 def generate_answer(
     question: str,
     context: str,
@@ -27,7 +69,7 @@ def generate_answer(
     prompt = ANSWER_PROMPT.format(
         question=question,
         context=context,
-        history=history_text if history_text else "None",
+        history=history_text or "None",
     )
 
     print("=" * 80)
@@ -41,40 +83,13 @@ def generate_answer(
     )
     print("=" * 80)
 
-    try:
+    answer = generate_text(
+        prompt=prompt,
+        temperature=0.1,
+    )
 
-        response = requests.post(
-            f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,
-                    "top_p": 0.9,
-                },
-            },
-            timeout=120,
-        )
+    print("=" * 80)
+    print("OLLAMA RESPONSE RECEIVED")
+    print("=" * 80)
 
-        print(
-            "OLLAMA STATUS:",
-            response.status_code,
-        )
-
-        if response.status_code != 200:
-            print("OLLAMA ERROR:")
-            print(response.text)
-
-        response.raise_for_status()
-
-        return response.json().get(
-            "response",
-            "No response generated.",
-        ).strip()
-
-    except requests.exceptions.RequestException as e:
-
-        print("OLLAMA REQUEST FAILED:")
-        print(str(e))
-        raise
+    return answer
