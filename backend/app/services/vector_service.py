@@ -1,10 +1,10 @@
+#vector_service.py
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
     VectorParams,
     PointStruct,
 )
-
 from app.core.config import settings
 
 COLLECTION_NAME = "document_chunks"
@@ -34,6 +34,22 @@ def create_collection():
         ),
     )
 
+def ensure_collection():
+    """
+    Ensure the Qdrant collection exists.
+    Safe to call multiple times.
+    """
+    collections = client.get_collections()
+
+    names = [
+        c.name
+        for c in collections.collections
+    ]
+
+    if COLLECTION_NAME not in names:
+        create_collection()
+
+
 def upsert_chunks(
     chunk_records,
     embeddings,
@@ -45,6 +61,7 @@ def upsert_chunks(
     for efficient filtering while preserving the
     original metadata object.
     """
+    ensure_collection()
 
     points = []
 

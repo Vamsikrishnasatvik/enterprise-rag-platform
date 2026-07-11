@@ -10,6 +10,7 @@ from app.services.embedding_service import (
 
 from app.services.vector_service import (
     client,
+    ensure_collection,
 )
 
 COLLECTION_NAME = "document_chunks"
@@ -30,6 +31,7 @@ def search_chunks(
 
     Returns normalized chunk dictionaries.
     """
+    ensure_collection()
 
     vector = generate_embeddings([query])[0]
 
