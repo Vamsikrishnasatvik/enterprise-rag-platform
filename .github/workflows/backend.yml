@@ -71,7 +71,7 @@ jobs:
 
       - name: Seed Database
         run: |
-          python scripts/seed.py
+          python -m scripts.seed
 
       - name: Run Tests
         run: |
