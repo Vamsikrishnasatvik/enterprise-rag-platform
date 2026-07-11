@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 Enterprise Agentic RAG Platform
+#  Enterprise Agentic RAG Platform
 
 ### Production-Ready Enterprise Retrieval-Augmented Generation (RAG) Platform
 
@@ -21,7 +21,7 @@
 
 ---
 
-# 📌 Overview
+#  Overview
 
 Enterprise Agentic RAG Platform is a **production-oriented Retrieval-Augmented Generation (RAG) backend** designed to demonstrate modern AI system engineering rather than a simple chatbot.
 
@@ -41,7 +41,7 @@ It is designed as a portfolio-quality project showcasing skills in:
 
 ---
 
-# 🎯 Why This Project?
+#  Why This Project?
 
 Most RAG tutorials stop after implementing:
 
@@ -74,9 +74,9 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-# ✨ Key Features
+#  Key Features
 
-## 🤖 AI & Retrieval
+##  AI & Retrieval
 
 - Intelligent Query Understanding
 - Planner Agent for retrieval planning
@@ -95,7 +95,7 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-## 🏢 Enterprise Features
+##  Enterprise Features
 
 - Multi-Tenant Architecture
 - Role-Based Access Control (RBAC)
@@ -108,7 +108,7 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-## ⚙️ Infrastructure
+##  Infrastructure
 
 - FastAPI REST API
 - PostgreSQL Database
@@ -121,7 +121,7 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-## 🧪 Quality & Testing
+##  Quality & Testing
 
 - Unit Tests
 - Integration Tests
@@ -133,7 +133,7 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-# 📊 Project Status
+#  Project Status
 
 | Category | Status |
 |-----------|--------|
@@ -152,7 +152,7 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-# 🏗️ High-Level Architecture
+#  High-Level Architecture
 
 ```text
                         Client Applications
@@ -194,7 +194,7 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-# 🧠 AI Agent Workflow
+#  AI Agent Workflow
 
 The current platform implements an extensible agent architecture that separates responsibilities into specialized components.
 
@@ -210,7 +210,7 @@ This modular architecture enables future expansion into a complete multi-agent A
 
 ---
 
-# 🛠 Technology Stack
+#  Technology Stack
 
 | Category | Technology |
 |-----------|------------|
