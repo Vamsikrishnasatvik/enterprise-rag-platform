@@ -31,7 +31,6 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
-
     healthcheck:
       test:
         [
@@ -77,10 +76,12 @@ services:
       - ./backend:/app
       - ./storage:/app/storage
     depends_on:
-      - postgres
-      - qdrant
-      - redis
-
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -106,9 +107,12 @@ services:
       - ./backend:/app
       - ./storage:/app/storage
     depends_on:
-      - postgres
-      - redis
-      - qdrant
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
 
   frontend:
     build:
@@ -121,10 +125,10 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_started
 
 volumes:
   postgres_data:
   qdrant_data:
   redis_data:
-
