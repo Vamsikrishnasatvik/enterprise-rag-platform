@@ -9,7 +9,11 @@ def test_retriever_agent(graph_state, monkeypatch):
             {
                 "chunk_id": 1,
                 "document_id": 1,
-                "content": "HR Leave Policy",
+                "content": (
+                    "The HR Leave Policy allows employees to take annual leave, "
+                    "sick leave, maternity leave, paternity leave, and emergency leave "
+                    "according to company guidelines and approval workflows."
+                ),
                 "score": 0.95,
             }
         ]
