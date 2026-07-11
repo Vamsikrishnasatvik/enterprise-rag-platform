@@ -1,4 +1,4 @@
-name: Enterprise RAG Backend CI
+name: Backend CI
 
 on:
   push:
@@ -6,43 +6,41 @@ on:
       - main
       - feature/**
   pull_request:
+    branches:
+      - main
 
 jobs:
-  backend-tests:
+  test:
 
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Containers
-        run: docker compose build
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Start Services
-        run: docker compose up -d
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-      - name: Wait for PostgreSQL
+      - name: Install Dependencies
         run: |
-          until docker compose exec -T postgres pg_isready -U postgres -d enterprise_rag
-          do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run Database Migrations
+      - name: Run Tests
         run: |
-          docker compose exec -T backend alembic upgrade head
-
-      - name: Run Test Suite
-        run: |
-          docker compose exec -T backend pytest
-
-      - name: Show Logs (Failure Only)
-        if: failure()
-        run: docker compose logs
-
-      - name: Shutdown
-        if: always()
-        run: docker compose down
+          pytest tests -v
