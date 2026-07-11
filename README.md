@@ -229,3 +229,256 @@ This modular architecture enables future expansion into a complete multi-agent A
 | Containerization | Docker & Docker Compose |
 
 ---
+
+#  Project Structure
+
+The project follows a modular, enterprise-oriented architecture to separate API, business logic, AI services, infrastructure, and background processing.
+
+```text
+enterprise-rag-platform/
+│
+├── backend/
+│   ├── alembic/                # Database migrations
+│   ├── app/
+│   │   ├── agents/             # AI agents
+│   │   ├── api/                # REST API endpoints
+│   │   ├── core/               # Configuration & utilities
+│   │   ├── db/                 # Database session
+│   │   ├── graph/              # Agent graph state
+│   │   ├── models/             # SQLAlchemy models
+│   │   ├── prompts/            # LLM prompt templates
+│   │   ├── schemas/            # Pydantic schemas
+│   │   ├── services/           # Business & AI services
+│   │   ├── workers/            # Background workers
+│   │   └── main.py             # FastAPI application
+│   │
+│   ├── scripts/                # Database seed scripts
+│   ├── tests/                  # Unit & integration tests
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── frontend/                   # Frontend application
+├── docs/                       # Project documentation
+├── infra/                      # Infrastructure files
+├── storage/                    # Local document storage
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+#  Getting Started
+
+## Prerequisites
+
+Before running the project, ensure the following software is installed:
+
+| Software | Version |
+|-----------|----------|
+| Python | 3.12+ |
+| Docker | Latest |
+| Docker Compose | Latest |
+| Git | Latest |
+
+---
+
+#  Clone the Repository
+
+```bash
+git clone https://github.com/<your-username>/enterprise-rag-platform.git
+
+cd enterprise-rag-platform
+```
+
+---
+
+#  Environment Variables
+
+Create a `.env` file in the project root.
+
+Example:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/enterprise_rag
+
+REDIS_URL=redis://redis:6379
+
+QDRANT_URL=http://qdrant:6333
+
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+
+OLLAMA_MODEL=llama3
+
+SECRET_KEY=change-this-secret-key
+```
+
+> **Note:** Update values according to your local environment.
+
+---
+
+#  Running with Docker
+
+Build all services:
+
+```bash
+docker compose up --build
+```
+
+Run in detached mode:
+
+```bash
+docker compose up -d
+```
+
+Stop services:
+
+```bash
+docker compose down
+```
+
+---
+
+#  Database Migration
+
+Apply all migrations:
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+Verify current migration:
+
+```bash
+docker compose exec backend alembic current
+```
+
+---
+
+#  Seed the Database
+
+Populate the database with sample users and tenants.
+
+```bash
+docker compose exec backend python -m scripts.seed
+```
+
+---
+
+#  Running the Application
+
+After the containers are running:
+
+Backend API:
+
+```
+http://localhost:8000
+```
+
+Interactive API Documentation:
+
+```
+http://localhost:8000/docs
+```
+
+OpenAPI Specification:
+
+```
+http://localhost:8000/openapi.json
+```
+
+---
+
+#  Authentication
+
+The platform uses **JWT-based authentication**.
+
+Typical authentication flow:
+
+```
+Client
+    │
+    ▼
+POST /auth/login
+    │
+    ▼
+JWT Access Token
+    │
+    ▼
+Authorization: Bearer <token>
+    │
+    ▼
+Protected Enterprise APIs
+```
+
+---
+
+#  API Overview
+
+The platform exposes RESTful APIs for document management, conversations, authentication, and chat.
+
+| Endpoint | Description |
+|----------|-------------|
+| `/auth/login` | Authenticate user |
+| `/documents/upload` | Upload enterprise documents |
+| `/chat/query` | Ask questions using the RAG pipeline |
+| `/conversations` | Manage conversations |
+| `/docs` | Interactive Swagger UI |
+| `/openapi.json` | OpenAPI schema |
+
+---
+
+#  Example Authentication Request
+
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@test.com",
+    "password": "password123"
+}
+```
+
+---
+
+#  Example Response
+
+```json
+{
+    "access_token": "<jwt-token>",
+    "token_type": "bearer"
+}
+```
+
+---
+
+#  Example Chat Request
+
+```http
+POST /chat/query
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+    "question": "Explain the HR Leave Policy"
+}
+```
+
+---
+
+#  Example Chat Response
+
+```json
+{
+    "answer": "Employees are entitled to annual leave according to company policy...",
+    "conversation_id": 1,
+    "sources": [
+        {
+            "document_id": 3,
+            "chunk_id": 12
+        }
+    ]
+}
+```
+
+---
