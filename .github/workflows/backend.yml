@@ -11,15 +11,21 @@ on:
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/enterprise_rag
+      REDIS_URL: redis://localhost:6379
+      QDRANT_URL: http://localhost:6333
+      OLLAMA_BASE_URL: http://localhost:11434
+      OLLAMA_MODEL: llama3
+      SECRET_KEY: github-actions-secret-key
 
     defaults:
       run:
         working-directory: backend
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
