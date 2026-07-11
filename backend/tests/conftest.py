@@ -126,3 +126,43 @@ def sample_chunks():
             "score": 0.90,
         },
     ]
+
+# ---------------------------------------------------------
+# Mock LLM
+# ---------------------------------------------------------
+
+import pytest
+
+from app.services import llm_service
+
+
+@pytest.fixture(autouse=True)
+def mock_llm(monkeypatch):
+    """
+    Mock Ollama for all tests.
+    """
+
+    def fake_generate_text(
+        prompt: str,
+        temperature: float = 0.1,
+    ):
+
+        prompt_lower = prompt.lower()
+
+        # Multi-query generation prompt
+        if (
+            "enterprise search expert" in prompt_lower
+            or "alternative search" in prompt_lower
+        ):
+            return """Explain the HR Leave Policy
+Employee leave policy
+Annual leave rules
+Paid leave policy"""
+
+        return "Test response"
+
+    monkeypatch.setattr(
+        llm_service,
+        "generate_text",
+        fake_generate_text,
+    )
