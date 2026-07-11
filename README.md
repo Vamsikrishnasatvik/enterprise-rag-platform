@@ -482,3 +482,374 @@ Content-Type: application/json
 ```
 
 ---
+#  Enterprise RAG Pipeline
+
+The platform follows a modular Retrieval-Augmented Generation (RAG) workflow designed for enterprise document intelligence.
+
+```text
+                    User Question
+                          │
+                          ▼
+                   Query Agent
+                          │
+                          ▼
+                  Planner Agent
+                          │
+                          ▼
+             Retrieval Orchestrator
+                          │
+        ┌─────────┬────────────┬────────────┐
+        ▼         ▼            ▼
+   Semantic     BM25      Multi-Query
+        └─────────┴────────────┘
+                  │
+                  ▼
+       Hybrid Retrieval (RRF)
+                  │
+                  ▼
+        Context Compression
+                  │
+                  ▼
+      Conversation Memory
+                  │
+                  ▼
+            Ollama LLM
+                  │
+                  ▼
+           Grounded Response
+```
+
+---
+
+#  Agent Architecture
+
+The current implementation separates responsibilities into specialized agents, making the platform modular and extensible.
+
+| Agent | Responsibility |
+|--------|----------------|
+| Query Agent | Understand user intent, rewrite queries, extract entities and metadata filters |
+| Planner Agent | Build an execution plan and choose the retrieval strategy |
+| Retriever Agent | Retrieve relevant document chunks using semantic, lexical, hybrid, or multi-query search |
+| Memory Services | Maintain conversation context and rewrite follow-up questions |
+| LLM Service | Generate grounded responses using retrieved context |
+
+This architecture provides a solid foundation for the advanced multi-agent workflow planned in the next development phase.
+
+---
+
+#  Current Retrieval Strategies
+
+The platform supports multiple retrieval approaches depending on the execution plan.
+
+| Strategy | Purpose |
+|----------|---------|
+| Semantic Search | Dense vector similarity search using Qdrant |
+| BM25 Search | Traditional keyword-based retrieval |
+| Hybrid Search | Combines semantic and lexical retrieval using Reciprocal Rank Fusion (RRF) |
+| Multi-Query Retrieval | Generates multiple semantic search queries for improved recall |
+| Metadata Filtering | Restricts search results using document metadata |
+
+---
+
+#  Background Document Processing
+
+Document ingestion is performed asynchronously to improve scalability and responsiveness.
+
+```text
+Upload Document
+       │
+       ▼
+Create Ingestion Job
+       │
+       ▼
+Redis Queue (RQ)
+       │
+       ▼
+Background Worker
+       │
+       ▼
+Document Parsing
+       │
+       ▼
+Metadata Extraction
+       │
+       ▼
+Chunk Generation
+       │
+       ▼
+Embedding Generation
+       │
+       ▼
+Qdrant Indexing
+       │
+       ▼
+Document Ready
+```
+
+---
+
+#  Testing
+
+The project includes automated tests covering core functionality.
+
+Current test coverage includes:
+
+- Agent Tests
+- Authentication
+- Document Upload
+- Conversation APIs
+- Integration Tests
+- Retrieval Evaluation
+- Hybrid Retrieval
+- Context Compression
+- Multi-Query Retrieval
+
+Run the test suite:
+
+```bash
+pytest tests -v
+```
+
+Example output:
+
+```text
+==============================
+18 passed
+==============================
+```
+
+---
+
+#  Continuous Integration
+
+GitHub Actions automatically performs:
+
+- Dependency installation
+- PostgreSQL startup
+- Redis startup
+- Qdrant startup
+- Database migrations
+- Seed data generation
+- Automated testing
+
+Every push and pull request is validated before integration.
+
+---
+
+#  Performance Considerations
+
+The platform is designed with scalability in mind.
+
+Current optimizations include:
+
+- Background document ingestion
+- Redis-backed job queue
+- Vector search using Qdrant
+- Context compression
+- Metadata-aware filtering
+- Hybrid retrieval
+- Modular service architecture
+
+---
+
+#  Security
+
+Enterprise-oriented security features include:
+
+- JWT Authentication
+- Password Hashing
+- Role-Based Access Control (RBAC)
+- Multi-Tenant Data Isolation
+- Protected API Endpoints
+- Input Validation
+- SQLAlchemy ORM Protection
+- Environment-Based Configuration
+
+---
+
+#  Scalability
+
+The architecture is designed to support future horizontal scaling.
+
+Current design enables:
+
+- Independent API services
+- Separate worker processes
+- External vector database
+- Redis-backed queues
+- Stateless FastAPI application
+- Containerized deployment
+
+---
+
+#  Development Roadmap
+
+##  Phase 1 — Foundation
+
+- Authentication
+- User Management
+- Multi-Tenancy
+- Document Upload
+- Basic RAG Pipeline
+
+---
+
+##  Phase 2 — Production RAG
+
+- Conversation Memory
+- Metadata Filtering
+- Background Ingestion
+- Redis Queue
+- Qdrant Integration
+
+---
+
+##  Phase 3 — Advanced Retrieval
+
+- Hybrid Search
+- BM25 Retrieval
+- Reciprocal Rank Fusion
+- Context Compression
+- Multi-Query Retrieval
+- Retrieval Evaluation
+
+---
+
+##  Phase 4 — Agentic RAG Foundation
+
+- Query Agent
+- Planner Agent
+- Retriever Agent
+- Query Understanding
+- Execution Planning
+- Agent Workflow Foundation
+
+---
+
+##  Phase 5 — Advanced Agentic AI
+
+Planned work includes:
+
+- Supervisor Agent
+- Reflection Agent
+- Verification Agent
+- LangGraph Workflow
+- Dynamic Agent Routing
+- Self-Correcting Retrieval
+- Confidence Scoring
+- Agent Observability
+
+---
+
+##  Phase 6 — Production Readiness
+
+Planned improvements:
+
+- Advanced Monitoring
+- Distributed Tracing
+- Metrics Dashboard
+- Production Deployment
+- Infrastructure Automation
+- Performance Optimization
+
+---
+
+#  Screenshots
+
+> Screenshots and demonstration GIFs will be added as the user interface and monitoring dashboards evolve.
+
+Suggested additions:
+
+- Login Page
+- Swagger UI
+- Document Upload
+- Chat Interface
+- Retrieval Workflow
+- Analytics Dashboard
+
+---
+
+#  Contributing
+
+Contributions are welcome.
+
+1. Fork the repository
+2. Create a feature branch
+
+```bash
+git checkout -b feature/my-feature
+```
+
+3. Commit your changes
+
+```bash
+git commit -m "feat: add awesome feature"
+```
+
+4. Push the branch
+
+```bash
+git push origin feature/my-feature
+```
+
+5. Open a Pull Request
+
+---
+
+#  License
+
+This project is licensed under the MIT License.
+
+See the `LICENSE` file for additional details.
+
+---
+
+#  Author
+
+**vamsi krishna satvik .s**
+
+Backend Engineer • AI Engineer • Platform Engineer
+
+GitHub:
+
+```
+https://github.com/<your-username>
+```
+
+LinkedIn:
+
+```
+https://linkedin.com/in/<your-profile>
+```
+
+---
+
+#  Acknowledgements
+
+This project builds upon the excellent work of the open-source community.
+
+Special thanks to:
+
+- FastAPI
+- SQLAlchemy
+- Alembic
+- Qdrant
+- Redis
+- RQ
+- Sentence Transformers
+- Ollama
+- Hugging Face
+- Docker
+- GitHub Actions
+
+---
+
+<div align="center">
+
+##  If you found this project useful, consider giving it a star!
+
+Enterprise Agentic RAG Platform
+
+Built with ❤️ using Python, FastAPI, Qdrant, Redis, Docker, and modern AI engineering practices, #chatgpt.
+
+</div>
