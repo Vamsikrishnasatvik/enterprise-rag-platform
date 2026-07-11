@@ -1,6 +1,6 @@
 import json
 
-from app.services.llm_service import generate_text
+from app.services import llm_service
 from app.prompts.query_understanding_prompt import (
     QUERY_UNDERSTANDING_PROMPT,
 )
@@ -20,7 +20,7 @@ User Question:
 {question}
 """
 
-    result = generate_text(
+    result = llm_service.generate_text(
         prompt=prompt,
         temperature=0.0,
         response_format="json",

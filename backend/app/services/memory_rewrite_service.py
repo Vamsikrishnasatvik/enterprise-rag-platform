@@ -4,10 +4,7 @@ from app.prompts.memory_rewrite_prompt import (
     MEMORY_REWRITE_PROMPT,
 )
 
-from app.services.llm_service import (
-    generate_text,
-)
-
+from app.services import llm_service
 
 def rewrite_query(
     question: str,
@@ -35,7 +32,7 @@ Current User Question:
 {question}
 """
 
-    return generate_text(
+    return llm_service.generate_text(
         prompt=prompt,
         temperature=0.1,
     ).strip()

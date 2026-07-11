@@ -1,5 +1,4 @@
-from app.services.llm_service import generate_text
-
+from app.services import llm_service
 
 def summarize_conversation(
     history: list,
@@ -43,7 +42,7 @@ Conversation:
 Summary:
 """
 
-    return generate_text(
+    return llm_service.generate_text(
         prompt=prompt,
         temperature=0.1,
     )

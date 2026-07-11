@@ -1,9 +1,7 @@
 import json
 import logging
 
-from app.services.llm_service import (
-    generate_text,
-)
+from app.services import llm_service
 
 from app.prompts.planning_prompt import (
     PLANNING_PROMPT,
@@ -52,7 +50,7 @@ Metadata Filters:
 
     try:
 
-        result = generate_text(
+        result = llm_service.generate_text(
             prompt=prompt,
             temperature=0.1,
             response_format="json",

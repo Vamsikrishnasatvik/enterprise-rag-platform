@@ -144,11 +144,15 @@ def mock_llm(monkeypatch):
     def fake_generate_text(
         prompt: str,
         temperature: float = 0.1,
+        response_format: str | None = None,
+        timeout: int = 120,
     ):
 
         prompt_lower = prompt.lower()
 
-        # Query understanding
+        # -----------------------------
+        # Query Understanding
+        # -----------------------------
         if "query understanding" in prompt_lower:
             return """
 {
@@ -159,7 +163,46 @@ def mock_llm(monkeypatch):
 }
 """.strip()
 
-        # Multi-query generation
+        # -----------------------------
+        # Planner
+        # -----------------------------
+        if "execution plan" in prompt_lower or "planning" in prompt_lower:
+            return """
+{
+    "intent":"general",
+    "search_strategy":"semantic",
+    "retrieval_count":5,
+    "use_memory":false,
+    "use_metadata_filters":false,
+    "metadata_filters":{},
+    "requires_reranking":false,
+    "requires_verification":false,
+    "multi_document":false,
+    "use_hybrid_search":false,
+    "use_query_expansion":false,
+    "use_summary_memory":false
+}
+""".strip()
+
+        # -----------------------------
+        # Metadata Extraction
+        # -----------------------------
+        if "document-level metadata" in prompt_lower or "metadata" in prompt_lower:
+            return """
+{
+    "department":"HR",
+    "document_type":"Policy",
+    "version":"1.0",
+    "effective_date":"2026-01-01",
+    "owner":"HR",
+    "classification":"Internal",
+    "tags":["leave","policy"]
+}
+""".strip()
+
+        # -----------------------------
+        # Multi Query
+        # -----------------------------
         if "enterprise search expert" in prompt_lower:
             return """
 Explain the HR Leave Policy
