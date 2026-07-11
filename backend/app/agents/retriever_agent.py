@@ -3,9 +3,7 @@ import logging
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
-from app.services.retrieval_orchestrator import (
-    retrieve_documents,
-)
+from app.services import retrieval_orchestrator
 
 from app.services.context_compression_service import (
     compress_context,
@@ -100,7 +98,7 @@ class RetrieverAgent(BaseAgent):
         # Retrieve Documents
         # ----------------------------------------
 
-        results = retrieve_documents(
+        results = retrieval_orchestrator.retrieve_documents(
             question=query,
             tenant_id=state["tenant_id"],
             limit=limit,

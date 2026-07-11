@@ -1,7 +1,24 @@
 from app.agents.retriever_agent import RetrieverAgent
+from app.services import retrieval_orchestrator
 
 
-def test_retriever_agent(graph_state):
+def test_retriever_agent(graph_state, monkeypatch):
+
+    def fake_retrieve_documents(**kwargs):
+        return [
+            {
+                "chunk_id": 1,
+                "document_id": 1,
+                "content": "HR Leave Policy",
+                "score": 0.95,
+            }
+        ]
+
+    monkeypatch.setattr(
+        retrieval_orchestrator,
+        "retrieve_documents",
+        fake_retrieve_documents,
+    )
 
     agent = RetrieverAgent()
 
