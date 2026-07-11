@@ -6,10 +6,17 @@ from app.api.v1.conversations import (
     router as conversation_router,
 )
 
+from app.services.vector_service import create_collection
+
 app = FastAPI(
     title="Enterprise RAG Platform",
     version="0.1.0",
 )
+
+
+@app.on_event("startup")
+def startup():
+    create_collection()
 
 
 @app.get("/")
