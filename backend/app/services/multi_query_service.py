@@ -1,8 +1,6 @@
 import logging
 
-from app.services.llm_service import (
-    generate_text,
-)
+from app.services import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,7 @@ Question:
 
     try:
 
-        response = generate_text(
+        response = llm_service.generate_text(
             prompt=prompt,
             temperature=0.2,
         )
