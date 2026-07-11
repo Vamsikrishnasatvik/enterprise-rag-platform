@@ -17,6 +17,7 @@ def test_planner_agent(graph_state):
         "semantic",
         "bm25",
         "hybrid",
+        "multi_query",
     ]
 
     assert len(result["execution_trace"]) == 1
