@@ -24,6 +24,11 @@ from app.services.ingestion_job_service import (
 from app.services.queue_service import (
     enqueue_ingestion_job,
 )
+from app.core.config import settings
+
+from app.workers.ingestion_worker import (
+    process_ingestion_job,
+)
 
 router = APIRouter()
 
@@ -58,9 +63,12 @@ async def upload_document(
         document_id=document.id,
     )
 
-    enqueue_ingestion_job(
-        job.id
-    )
+    # Run synchronously during tests,
+    # enqueue in all other environments.
+    if settings.ENVIRONMENT == "testing":
+        process_ingestion_job(job.id)
+    else:
+        enqueue_ingestion_job(job.id)
 
     return {
         "document_id": document.id,
