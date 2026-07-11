@@ -2,7 +2,8 @@
 
 #  Enterprise Agentic RAG Platform
 
-### Production-Ready Enterprise Retrieval-Augmented Generation (RAG) Platform
+### Production-Oriented Enterprise Retrieval-Augmented Generation (RAG) Platform
+Enterprise-grade Retrieval-Augmented Generation platform demonstrating production backend engineering, intelligent retrieval, and modular AI agent architecture.
 
 *A scalable, multi-tenant AI platform featuring intelligent retrieval, conversation memory, hybrid search, and an extensible agent architecture built with modern backend engineering practices.*
 
@@ -43,12 +44,12 @@
 - [Scalability](#-scalability)
 - [Roadmap](#-development-roadmap)
 - [Contributing](#-contributing)
-- [License](#-license)
+- [Version](https://img.shields.io/badge/version-v0.5.0--dev-orange)
 
 ---
 #  Overview
 
-Enterprise Agentic RAG Platform is a **production-oriented Retrieval-Augmented Generation (RAG) backend** designed to demonstrate modern AI system engineering rather than a simple chatbot.
+Enterprise Agentic RAG Platform is a **production-oriented Retrieval-Augmented Generation (RAG) backend** designed to demonstrate modern AI system engineering practices beyond a traditional chatbot implementation.
 
 The platform combines enterprise backend architecture with intelligent retrieval techniques, conversation memory, background document ingestion, metadata-aware search, and an extensible agent-based workflow.
 
@@ -65,20 +66,27 @@ It is designed as a portfolio-quality project showcasing skills in:
 - CI/CD and Automated Testing
 
 ---
-## 🏆 Enterprise Highlights
+##  Enterprise Highlights
 
-- ✅ Production-Oriented Architecture
-- ✅ Multi-Tenant Design
-- ✅ JWT Authentication
-- ✅ Role-Based Access Control
-- ✅ Background Document Ingestion
-- ✅ Hybrid Retrieval
-- ✅ Conversation Memory
-- ✅ Metadata-Aware Search
-- ✅ Modular AI Agents
-- ✅ Automated Testing
-- ✅ GitHub Actions CI
-- ✅ Dockerized Deployment
+Production Architecture
+
+JWT Authentication
+
+RBAC
+
+Multi-Tenant
+
+Hybrid Retrieval
+
+Conversation Memory
+
+Background Processing
+
+Metadata Filtering
+
+Docker
+
+GitHub Actions
 
 ---
 
@@ -248,6 +256,7 @@ The current platform implements an extensible agent architecture that separates 
 This modular architecture enables future expansion into a complete multi-agent AI system in Phase 5.
 
 ---
+#  Technology Stack
 
 | Layer            | Technology            |
 | ---------------- | --------------------- |
@@ -292,6 +301,7 @@ enterprise-rag-platform/
 │   ├── scripts/                # Database seed scripts
 │   ├── tests/                  # Unit & integration tests
 │   ├── requirements.txt
+|   ├── pytest.ini
 │   └── Dockerfile
 │
 ├── frontend/                   # Frontend application
@@ -830,14 +840,6 @@ git push origin feature/my-feature
 ```
 
 5. Open a Pull Request
-
----
-
-#  License
-
-This project is licensed under the MIT License.
-
-See the `LICENSE` file for additional details.
 
 ---
 
