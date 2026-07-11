@@ -20,7 +20,32 @@
 </div>
 
 ---
+##  Table of Contents
 
+- [Overview](#-overview)
+- [Why This Project?](#-why-this-project)
+- [Key Features](#-key-features)
+- [Project Status](#-project-status)
+- [Architecture](#-high-level-architecture)
+- [AI Agent Workflow](#-ai-agent-workflow)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [Docker Deployment](#-running-with-docker)
+- [Authentication](#-authentication)
+- [API Overview](#-api-overview)
+- [Enterprise RAG Pipeline](#-enterprise-rag-pipeline)
+- [Background Processing](#-background-document-processing)
+- [Testing](#-testing)
+- [CI/CD](#-continuous-integration)
+- [Security](#-security)
+- [Scalability](#-scalability)
+- [Roadmap](#-development-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
 #  Overview
 
 Enterprise Agentic RAG Platform is a **production-oriented Retrieval-Augmented Generation (RAG) backend** designed to demonstrate modern AI system engineering rather than a simple chatbot.
@@ -38,6 +63,22 @@ It is designed as a portfolio-quality project showcasing skills in:
 - Secure Authentication
 - Multi-Tenant Architecture
 - CI/CD and Automated Testing
+
+---
+## 🏆 Enterprise Highlights
+
+- ✅ Production-Oriented Architecture
+- ✅ Multi-Tenant Design
+- ✅ JWT Authentication
+- ✅ Role-Based Access Control
+- ✅ Background Document Ingestion
+- ✅ Hybrid Retrieval
+- ✅ Conversation Memory
+- ✅ Metadata-Aware Search
+- ✅ Modular AI Agents
+- ✅ Automated Testing
+- ✅ GitHub Actions CI
+- ✅ Dockerized Deployment
 
 ---
 
@@ -152,44 +193,42 @@ The goal is to showcase how enterprise AI applications are architected, implemen
 
 ---
 
-#  High-Level Architecture
+```mermaid
+flowchart TD
 
-```text
-                        Client Applications
-                                │
-                                ▼
-                        FastAPI REST API
-                                │
-                    JWT Authentication & RBAC
-                                │
-                                ▼
-                      Enterprise Agent Pipeline
-                                │
-      ┌───────────────┬───────────────┬───────────────┐
-      ▼               ▼               ▼
- Query Agent     Planner Agent   Retriever Agent
-                                │
-                                ▼
-                  Retrieval Orchestrator
-                                │
-        ┌──────────────┬──────────────┬──────────────┐
-        ▼              ▼              ▼
-    Semantic         BM25       Multi-Query Search
-        └──────────────┬──────────────┘
-                       ▼
-            Hybrid Retrieval (RRF)
-                       │
-                       ▼
-              Context Compression
-                       │
-                       ▼
-            Conversation Memory
-                       │
-                       ▼
-                  Ollama LLM
-                       │
-                       ▼
-                Final AI Response
+A[Client]
+
+A --> B[FastAPI API]
+
+B --> C[JWT Authentication]
+
+C --> D[Query Agent]
+
+D --> E[Planner Agent]
+
+E --> F[Retriever Agent]
+
+F --> G[Retrieval Orchestrator]
+
+G --> H[Semantic Search]
+
+G --> I[BM25 Search]
+
+G --> J[Multi Query]
+
+H --> K[Hybrid Retrieval]
+
+I --> K
+
+J --> K
+
+K --> L[Context Compression]
+
+L --> M[Conversation Memory]
+
+M --> N[Ollama]
+
+N --> O[Final Response]
 ```
 
 ---
@@ -210,23 +249,21 @@ This modular architecture enables future expansion into a complete multi-agent A
 
 ---
 
-#  Technology Stack
+| Layer            | Technology            |
+| ---------------- | --------------------- |
+| Language         | Python 3.12           |
+| Backend          | FastAPI               |
+| ORM              | SQLAlchemy            |
+| Database         | PostgreSQL            |
+| Vector Store     | Qdrant                |
+| Queue            | Redis + RQ            |
+| Embeddings       | Sentence Transformers |
+| LLM              | Ollama                |
+| Authentication   | JWT                   |
+| Testing          | Pytest                |
+| CI/CD            | GitHub Actions        |
+| Containerization | Docker                |
 
-| Category | Technology |
-|-----------|------------|
-| Language | Python 3.12 |
-| Web Framework | FastAPI |
-| ORM | SQLAlchemy |
-| Database | PostgreSQL |
-| Vector Database | Qdrant |
-| Background Queue | Redis + RQ |
-| Embedding Model | Sentence Transformers |
-| LLM | Ollama |
-| Authentication | JWT |
-| Database Migrations | Alembic |
-| Testing | Pytest |
-| CI/CD | GitHub Actions |
-| Containerization | Docker & Docker Compose |
 
 ---
 
