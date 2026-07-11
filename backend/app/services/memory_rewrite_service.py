@@ -1,10 +1,11 @@
 import json
-import requests
-
-from app.core.config import settings
 
 from app.prompts.memory_rewrite_prompt import (
     MEMORY_REWRITE_PROMPT,
+)
+
+from app.services.llm_service import (
+    generate_text,
 )
 
 
@@ -34,18 +35,7 @@ Current User Question:
 {question}
 """
 
-    response = requests.post(
-        f"{settings.OLLAMA_BASE_URL}/api/generate",
-        json={
-            "model": settings.OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-        },
-        timeout=120,
-    )
-
-    response.raise_for_status()
-
-    rewritten = response.json()["response"].strip()
-
-    return rewritten
+    return generate_text(
+        prompt=prompt,
+        temperature=0.1,
+    ).strip()

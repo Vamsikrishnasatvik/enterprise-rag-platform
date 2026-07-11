@@ -1,11 +1,12 @@
 import json
 import logging
-import requests
-
-from app.core.config import settings
 
 from app.prompts.query_expansion_prompt import (
     QUERY_EXPANSION_PROMPT,
+)
+
+from app.services.llm_service import (
+    generate_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,22 +32,13 @@ Question:
 
     try:
 
-        response = requests.post(
-            f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-            },
-            timeout=120,
+        response = generate_text(
+            prompt=prompt,
+            temperature=0.1,
+            response_format="json",
         )
 
-        response.raise_for_status()
-
-        queries = json.loads(
-            response.json()["response"]
-        )
+        queries = json.loads(response)
 
         if (
             not isinstance(queries, list)

@@ -138,9 +138,8 @@ from app.services import llm_service
 
 @pytest.fixture(autouse=True)
 def mock_llm(monkeypatch):
-    """
-    Mock Ollama for all tests.
-    """
+
+    from app.services import llm_service
 
     def fake_generate_text(
         prompt: str,
@@ -149,15 +148,25 @@ def mock_llm(monkeypatch):
 
         prompt_lower = prompt.lower()
 
-        # Multi-query generation prompt
-        if (
-            "enterprise search expert" in prompt_lower
-            or "alternative search" in prompt_lower
-        ):
-            return """Explain the HR Leave Policy
+        # Query understanding
+        if "query understanding" in prompt_lower:
+            return """
+{
+    "intent": "general",
+    "rewritten_query": "What is the HR Leave Policy?",
+    "entities": [],
+    "metadata_filters": {}
+}
+""".strip()
+
+        # Multi-query generation
+        if "enterprise search expert" in prompt_lower:
+            return """
+Explain the HR Leave Policy
 Employee leave policy
 Annual leave rules
-Paid leave policy"""
+Paid leave policy
+""".strip()
 
         return "Test response"
 

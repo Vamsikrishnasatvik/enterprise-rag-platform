@@ -1,8 +1,8 @@
 import json
 import logging
-import requests
 
-from app.core.config import settings
+from app.services.llm_service import generate_text
+
 from app.prompts.metadata_extraction_prompt import (
     METADATA_EXTRACTION_PROMPT,
 )
@@ -29,25 +29,14 @@ DOCUMENT
 
     try:
 
-        response = requests.post(
-            f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-                "options": {
-                    "temperature": 0,
-                },
-            },
+        response = generate_text(
+            prompt=prompt,
+            temperature=0.0,
+            response_format="json",
             timeout=300,
         )
 
-        response.raise_for_status()
-
-        metadata = json.loads(
-            response.json()["response"]
-        )
+        metadata = json.loads(response)
 
         metadata.setdefault(
             "tags",

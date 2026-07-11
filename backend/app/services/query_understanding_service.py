@@ -1,7 +1,6 @@
 import json
-import requests
 
-from app.core.config import settings
+from app.services.llm_service import generate_text
 from app.prompts.query_understanding_prompt import (
     QUERY_UNDERSTANDING_PROMPT,
 )
@@ -21,20 +20,11 @@ User Question:
 {question}
 """
 
-    response = requests.post(
-        f"{settings.OLLAMA_BASE_URL}/api/generate",
-        json={
-            "model": settings.OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json",
-        },
-        timeout=120,
+    result = generate_text(
+        prompt=prompt,
+        temperature=0.0,
+        response_format="json",
     )
-
-    response.raise_for_status()
-
-    result = response.json()["response"]
 
     data = json.loads(result)
 

@@ -10,6 +10,8 @@ import json
 def generate_text(
     prompt: str,
     temperature: float = 0.1,
+    response_format: str | None = None,
+    timeout: int = 120,
 ) -> str:
     """
     Generic Ollama text generation.
@@ -41,18 +43,23 @@ def generate_text(
 
     try:
 
+        payload = {
+            "model": settings.OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": temperature,
+                "top_p": 0.9,
+            },
+        }
+
+        if response_format == "json":
+            payload["format"] = "json"
+
         response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": temperature,
-                    "top_p": 0.9,
-                },
-            },
-            timeout=120,
+            json=payload,
+            timeout=timeout,
         )
 
         response.raise_for_status()
