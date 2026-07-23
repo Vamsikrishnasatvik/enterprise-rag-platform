@@ -10,41 +10,32 @@ from app.services.llm_service import (
 from app.services.message_service import (
     build_chat_history,
 )
+from app.graph.workflow import graph
 
 
-def answer_question(
-    question: str,
-):
-    results = search_chunks(
-        question
-    )
+def answer_question(question: str):
+    state = {
+        "question": question,
+    }
 
-    context = build_context(
-        results
-    )
-
-    answer = generate_answer(
-        question,
-        context,
-    )
+    result = graph.invoke(state)
 
     sources = []
 
-    for result in results:
+    for chunk in result["retrieved_chunks"]:
         sources.append(
             {
-                "chunk_id": result.payload["chunk_id"],
-                "document_id": result.payload["document_id"],
-                "content": result.payload["content"],
-                "score": result.score,
+                "chunk_id": chunk.payload["chunk_id"],
+                "document_id": chunk.payload["document_id"],
+                "content": chunk.payload["content"],
+                "score": chunk.score,
             }
         )
 
     return {
-        "answer": answer,
+        "answer": result["answer"],
         "sources": sources,
     }
-
 
 def answer_conversation_question(
     db,
