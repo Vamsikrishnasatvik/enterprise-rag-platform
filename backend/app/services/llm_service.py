@@ -1,7 +1,8 @@
+from click import prompt
 import requests
 
 from app.core.config import settings
-
+from app.prompts.summarizer_prompt import SUMMARIZER_PROMPT
 
 def call_llm(prompt: str) -> str:
     """
@@ -44,40 +45,44 @@ def call_llm(prompt: str) -> str:
 def generate_answer(
     question: str,
     context: str,
-    history: list | None = None,
+    memory_context: str = "",
 ):
     """
     Build the RAG prompt and call the LLM.
     """
 
-    history_text = ""
-
-    if history:
-        for msg in history:
-            history_text += (
-                f"{msg['role']}: "
-                f"{msg['content']}\n"
-            )
-
     prompt = f"""
-You are a data analyst.
+You are an enterprise AI assistant.
 
-The CONTEXT contains tabular data.
+Use the retrieved CONTEXT as the primary source of truth.
 
-You MUST answer ONLY from the CONTEXT.
+Use the Conversation Memory only to understand follow-up
+questions and references.
 
-You MUST NOT use external knowledge.
+If the answer is not present in the CONTEXT,
+say that the information was not found.
 
-Conversation History:
-{history_text}
+Conversation Memory:
+{memory_context}
 
-CONTEXT:
+Retrieved Context:
 {context}
 
-QUESTION:
+Current Question:
 {question}
 
-ANSWER:
+Answer:
 """
+
+def generate_summary(
+    conversation: str,
+) -> str:
+    """
+    Generate a concise summary of a conversation.
+    """
+
+    prompt = SUMMARIZER_PROMPT.format(
+        conversation=conversation,
+    )
 
     return call_llm(prompt)

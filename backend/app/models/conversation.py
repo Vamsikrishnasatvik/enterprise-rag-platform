@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy import Text
 
 from sqlalchemy import (
     Column,
@@ -26,6 +27,10 @@ class Conversation(Base):
         String,
         nullable=True,
     )
+
+    summary = Column(Text, nullable=True)
+
+    summary_updated_at = Column(DateTime, nullable=True)
 
     created_at = Column(
         DateTime,

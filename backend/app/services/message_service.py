@@ -28,37 +28,51 @@ def get_messages(
 ):
     return (
         db.query(Message)
-        .filter(
-            Message.conversation_id
-            == conversation_id
-        )
+        .filter(Message.conversation_id == conversation_id)
         .order_by(Message.created_at)
         .all()
     )
 
 
-def build_chat_history(
+def _format_messages(messages: list[Message]) -> list[dict]:
+    """
+    Convert Message ORM objects into chat history format.
+    """
+    return [
+        {
+            "role": message.role,
+            "content": message.content,
+        }
+        for message in messages
+    ]
+
+
+def get_chat_history(
     db: Session,
     conversation_id: int,
 ):
+    messages = get_messages(
+        db=db,
+        conversation_id=conversation_id,
+    )
+
+    return _format_messages(messages)
+
+
+def get_recent_messages(
+    db: Session,
+    conversation_id: int,
+    limit: int = 10,
+):
     messages = (
         db.query(Message)
-        .filter(
-            Message.conversation_id
-            == conversation_id
-        )
-        .order_by(Message.created_at)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.desc())
+        .limit(limit)
         .all()
     )
 
-    history = []
+    # Reverse so the oldest of the recent messages comes first
+    messages.reverse()
 
-    for message in messages:
-        history.append(
-            {
-                "role": message.role,
-                "content": message.content,
-            }
-        )
-
-    return history
+    return _format_messages(messages)

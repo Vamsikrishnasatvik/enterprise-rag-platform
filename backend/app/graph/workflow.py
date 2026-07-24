@@ -2,6 +2,7 @@ from langgraph.graph import START, END, StateGraph
 
 from app.graph.state import GraphState
 
+from app.agents.memory_agent import MemoryAgent
 from app.agents.planner_agent import PlannerAgent
 from app.agents.supervisor_agent import SupervisorAgent
 from app.agents.retriever_agent import RetrieverAgent
@@ -14,7 +15,7 @@ from app.agents.retry_agent import RetryAgent
 # =============================================================================
 # Agent Instances
 # =============================================================================
-
+memory = MemoryAgent()
 planner = PlannerAgent()
 supervisor = SupervisorAgent()
 retriever = RetrieverAgent()
@@ -27,6 +28,9 @@ retry = RetryAgent()
 # =============================================================================
 # Nodes
 # =============================================================================
+
+def memory_node(state: GraphState):
+    return memory(state)
 
 def planner_node(state: GraphState):
     return planner(state)
@@ -91,7 +95,7 @@ def build_workflow():
     # -------------------------------------------------------------------------
     # Register Nodes
     # -------------------------------------------------------------------------
-
+    workflow.add_node("memory", memory_node)
     workflow.add_node("planner", planner_node)
     workflow.add_node("supervisor", supervisor_node)
     workflow.add_node("retriever", retriever_node)
@@ -104,7 +108,9 @@ def build_workflow():
     # Entry Point
     # -------------------------------------------------------------------------
 
-    workflow.add_edge(START, "planner")
+    workflow.add_edge(START, "memory")
+
+    workflow.add_edge("memory", "planner")
 
     workflow.add_edge("planner", "supervisor")
 

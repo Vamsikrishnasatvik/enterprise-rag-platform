@@ -7,17 +7,19 @@ from app.services.llm_service import call_llm
 logger = logging.getLogger(__name__)
 
 
-def create_execution_plan(question: str) -> dict:
-    prompt = f"""
-{PLANNER_PROMPT}
+def create_execution_plan(
+    question: str,
+    memory_context: str = "",
+) -> dict:
 
-User Question:
-{question}
-"""
+    prompt = PLANNER_PROMPT.format(
+        memory_context=memory_context,
+        question=question,
+    )
 
     response = call_llm(prompt)
 
-    logger.info(response)
+    logger.info("Planner Response: %s", response)
 
     try:
         return json.loads(response)

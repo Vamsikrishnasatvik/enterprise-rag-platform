@@ -27,10 +27,21 @@ class GraphState(TypedDict, total=False):
     needs_verification: bool
 
     # -----------------------------
+    # Memory
+    # -----------------------------
+    conversation_summary: str
+    recent_messages: list
+    conversation_history: list          # Temporary (remove later)
+    memory_context: str
+
+    # -----------------------------
     # Retrieval
     # -----------------------------
+    retrieval_query: str
+    retrieval_limit: int
+    retrieval_strategy: str
     retrieved_chunks: list
-    compressed_context: str
+    compressed_context: str             # Later rename to retrieval_context
 
     # -----------------------------
     # Answer
@@ -55,17 +66,14 @@ class GraphState(TypedDict, total=False):
 
     # -----------------------------
     # Verification
-    # ----------------------------- 
+    # -----------------------------
     verification: dict
     verification_passed: bool
     verification_reason: str
 
+    # -----------------------------
     # Retry
+    # -----------------------------
     retry_required: bool
     retry_reason: str
-    retry_count: int
     max_retries: int
-
-    # Retrieval
-    retrieval_limit: int
-    retrieval_strategy: str

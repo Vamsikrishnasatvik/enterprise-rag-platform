@@ -18,8 +18,12 @@ class AnswerAgent(BaseAgent):
             context = ""
 
         answer = generate_answer(
-            state["question"],
-            context,
+            question=state["question"],
+            context=context,
+            memory_context=state.get(
+                "memory_context",
+                "",
+            ),
         )
 
         state["compressed_context"] = context
