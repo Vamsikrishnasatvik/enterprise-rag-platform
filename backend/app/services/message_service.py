@@ -2,15 +2,24 @@ from sqlalchemy.orm import Session
 
 from app.models.message import Message
 
-
 def create_message(
     db: Session,
     conversation_id: int,
+    tenant_id: int,
     role: str,
     content: str,
 ):
+
+    print("=" * 60)
+    print("CREATE MESSAGE")
+    print("conversation_id:", conversation_id)
+    print("tenant_id:", tenant_id)
+    print("role:", role)
+    print("=" * 60)
+    
     message = Message(
         conversation_id=conversation_id,
+        tenant_id=tenant_id,
         role=role,
         content=content,
     )
@@ -18,6 +27,7 @@ def create_message(
     db.add(message)
     db.commit()
     db.refresh(message)
+
 
     return message
 

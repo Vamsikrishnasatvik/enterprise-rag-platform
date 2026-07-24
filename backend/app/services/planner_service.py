@@ -12,9 +12,10 @@ def create_execution_plan(
     memory_context: str = "",
 ) -> dict:
 
-    prompt = PLANNER_PROMPT.format(
-        memory_context=memory_context,
-        question=question,
+    prompt = (
+        PLANNER_PROMPT
+        .replace("{memory_context}", memory_context)
+        .replace("{question}", question)
     )
 
     response = call_llm(prompt)

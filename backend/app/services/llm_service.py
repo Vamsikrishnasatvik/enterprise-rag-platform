@@ -1,4 +1,3 @@
-from click import prompt
 import requests
 
 from app.core.config import settings
@@ -73,16 +72,5 @@ Current Question:
 
 Answer:
 """
-
-def generate_summary(
-    conversation: str,
-) -> str:
-    """
-    Generate a concise summary of a conversation.
-    """
-
-    prompt = SUMMARIZER_PROMPT.format(
-        conversation=conversation,
-    )
 
     return call_llm(prompt)

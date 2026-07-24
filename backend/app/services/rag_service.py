@@ -105,6 +105,7 @@ def answer_question(
     create_message(
         db=db,
         conversation_id=conversation_id,
+        tenant_id=1,
         role="user",
         content=question,
     )
@@ -112,6 +113,7 @@ def answer_question(
     create_message(
         db=db,
         conversation_id=conversation_id,
+        tenant_id=1,
         role="assistant",
         content=result["answer"],
     )

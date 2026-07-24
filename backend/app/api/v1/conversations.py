@@ -19,11 +19,10 @@ from app.services.conversation_service import (
 
 from app.services.message_service import (
     get_messages,
-    create_message,
 )
 
 from app.services.rag_service import (
-    answer_conversation_question,
+    answer_question,
 )
 
 router = APIRouter()
@@ -38,8 +37,9 @@ def create_new_conversation(
     db: Session = Depends(get_db),
 ):
     return create_conversation(
-        db,
-        request.title,
+        db=db,
+        tenant_id=1,
+        title=request.title,
     )
 
 
@@ -99,8 +99,8 @@ def query_conversation(
     db: Session = Depends(get_db),
 ):
     conversation = get_conversation(
-        db,
-        conversation_id,
+        db=db,
+        conversation_id=conversation_id,
     )
 
     if not conversation:
@@ -109,24 +109,8 @@ def query_conversation(
             detail="Conversation not found",
         )
 
-    create_message(
-        db=db,
-        conversation_id=conversation_id,
-        role="user",
-        content=request.query,
-    )
-
-    result = answer_conversation_question(
+    return answer_question(
         db=db,
         conversation_id=conversation_id,
         question=request.query,
     )
-
-    create_message(
-        db=db,
-        conversation_id=conversation_id,
-        role="assistant",
-        content=result["answer"],
-    )
-
-    return result

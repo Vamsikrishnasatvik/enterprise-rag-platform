@@ -56,8 +56,8 @@ class Message(Base):
     )
 
     tenant_id = Column(
-    Integer,
-    ForeignKey("tenants.id"),
-    nullable=False,
-    index=True,
+        Integer,
+        ForeignKey("tenants.id"),
+        nullable=False,
+        index=True,
     )
