@@ -1,9 +1,14 @@
+import logging
+
 from fastapi import FastAPI
 
 from app.api.router import api_router
 from app.api.v1.chat import router as chat_router
-from app.api.v1.conversations import (
-    router as conversation_router,
+from app.api.v1.conversations import router as conversation_router
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
 )
 
 app = FastAPI(

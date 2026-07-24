@@ -10,9 +10,12 @@ class AnswerAgent(BaseAgent):
         super().__init__("AnswerAgent")
 
     def run(self, state: GraphState) -> GraphState:
-        context = build_context(
-            state["retrieved_chunks"]
-        )
+        retrieved_chunks = state.get("retrieved_chunks", [])
+
+        if retrieved_chunks:
+            context = build_context(retrieved_chunks)
+        else:
+            context = ""
 
         answer = generate_answer(
             state["question"],

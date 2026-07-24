@@ -1,49 +1,71 @@
-from typing import TypedDict, List, Dict, Any
+from typing import TypedDict, List, Dict
 
 
 class GraphState(TypedDict, total=False):
     """
-    Shared state passed between all agents in the LangGraph workflow.
+    Shared state passed between all agents.
     """
 
-    # User input
+    # -----------------------------
+    # User Input
+    # -----------------------------
     question: str
 
-    # Query analysis
-    query_analysis: Dict[str, Any]
+    # -----------------------------
+    # Planner
+    # -----------------------------
+    execution_plan: dict
+    query_type: str
+    planning_reason: str
 
-    # Execution plan decided by the Supervisor
-    execution_plan: Dict[str, Any]
+    # -----------------------------
+    # Supervisor
+    # -----------------------------
+    next_node: str
+    routing_reason: str
+    needs_retrieval: bool
+    needs_verification: bool
 
-    # Retrieved documents/chunks
-    retrieved_chunks: List[Dict[str, Any]]
-
-    # Context passed to the LLM
+    # -----------------------------
+    # Retrieval
+    # -----------------------------
+    retrieved_chunks: list
     compressed_context: str
 
-    # Final response
+    # -----------------------------
+    # Answer
+    # -----------------------------
     answer: str
+    citations: List[Dict]
 
-    # Source citations
-    citations: List[Dict[str, Any]]
-
-    # Confidence score
+    # -----------------------------
+    # Reflection
+    # -----------------------------
+    reflection: dict
     confidence_score: float
+    needs_retry: bool
 
-    # Reflection output
-    reflection: Dict[str, Any]
-
-    # Verification output
-    verification: Dict[str, Any]
-
-    # Execution tracing
+    # -----------------------------
+    # Monitoring
+    # -----------------------------
     execution_trace: List[str]
-
-    # Time spent by each agent
     agent_timings: Dict[str, float]
-
-    # Retry count
     retry_count: int
-
-    # Error list
     errors: List[str]
+
+    # -----------------------------
+    # Verification
+    # ----------------------------- 
+    verification: dict
+    verification_passed: bool
+    verification_reason: str
+
+    # Retry
+    retry_required: bool
+    retry_reason: str
+    retry_count: int
+    max_retries: int
+
+    # Retrieval
+    retrieval_limit: int
+    retrieval_strategy: str

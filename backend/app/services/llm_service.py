@@ -3,11 +3,53 @@ import requests
 from app.core.config import settings
 
 
+def call_llm(prompt: str) -> str:
+    """
+    Generic function to send a prompt to the configured LLM.
+    """
+
+    print("=" * 80)
+    print("OLLAMA MODEL:", settings.OLLAMA_MODEL)
+    print("PROMPT LENGTH:", len(prompt))
+    print("=" * 80)
+
+    try:
+        response = requests.post(
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=120,
+        )
+
+        print("OLLAMA STATUS:", response.status_code)
+
+        if response.status_code != 200:
+            print(response.text)
+
+        response.raise_for_status()
+
+        return response.json().get(
+            "response",
+            "No response generated.",
+        )
+
+    except requests.exceptions.RequestException:
+        print("OLLAMA REQUEST FAILED")
+        raise
+
+
 def generate_answer(
     question: str,
     context: str,
     history: list | None = None,
 ):
+    """
+    Build the RAG prompt and call the LLM.
+    """
+
     history_text = ""
 
     if history:
@@ -26,16 +68,8 @@ You MUST answer ONLY from the CONTEXT.
 
 You MUST NOT use external knowledge.
 
-If the question asks for:
-- highest
-- lowest
-- maximum
-- minimum
-- average
-- count
-- top
-
-you must inspect the values in the context and compute the answer.
+Conversation History:
+{history_text}
 
 CONTEXT:
 {context}
@@ -46,38 +80,4 @@ QUESTION:
 ANSWER:
 """
 
-    print("=" * 80)
-    print("OLLAMA MODEL:", settings.OLLAMA_MODEL)
-    print("PROMPT LENGTH:", len(prompt))
-    print("=" * 80)
-
-    try:
-        response = requests.post(
-    f"{settings.OLLAMA_BASE_URL}/api/generate",
-    json={
-        "model": settings.OLLAMA_MODEL,
-        "prompt": question,
-        "stream": False,
-    },
-    timeout=120,
-)
-
-        print("OLLAMA STATUS:", response.status_code)
-
-        if response.status_code != 200:
-            print("OLLAMA ERROR:")
-            print(response.text)
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        return data.get(
-            "response",
-            "No response generated.",
-        )
-
-    except requests.exceptions.RequestException as e:
-        print("OLLAMA REQUEST FAILED:")
-        print(str(e))
-        raise
+    return call_llm(prompt)
