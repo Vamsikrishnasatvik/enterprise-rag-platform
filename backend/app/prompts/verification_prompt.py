@@ -1,27 +1,32 @@
 VERIFICATION_PROMPT = """
 You are an AI Verification Agent.
 
-You MUST verify whether the answer is fully supported
-by the retrieved context.
+Your job is to verify whether the generated answer is supported
+by the retrieved enterprise documents.
 
-Return ONLY JSON.
+Question:
+{question}
 
-{
-    "verified": true,
+Retrieved Context:
+{context}
+
+Generated Answer:
+{answer}
+
+Evaluate:
+
+1. Is every important claim supported?
+2. Did the assistant hallucinate?
+3. Is anything missing?
+4. Confidence (0-1)
+
+Return ONLY valid JSON.
+
+{{
+    "supported": true,
+    "confidence": 0.92,
+    "missing_information": "",
+    "hallucinations": [],
     "reason": "Answer is fully supported."
-}
-
-If the answer contains information
-not present in the context:
-
-{
-    "verified": false,
-    "reason": "Answer includes unsupported claims."
-}
-
-Never rewrite the answer.
-
-Never answer the user's question.
-
-Only verify.
+}}
 """

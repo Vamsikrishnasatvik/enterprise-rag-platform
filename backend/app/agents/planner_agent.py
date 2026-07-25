@@ -4,10 +4,12 @@ from app.services.planner_service import create_execution_plan
 
 
 class PlannerAgent(BaseAgent):
+
     def __init__(self):
         super().__init__("PlannerAgent")
 
     def run(self, state: GraphState) -> GraphState:
+
         plan = create_execution_plan(
             question=state["question"],
             memory_context=state.get(
@@ -16,8 +18,45 @@ class PlannerAgent(BaseAgent):
             ),
         )
 
-        state["execution_plan"] = plan["execution_plan"]
-        state["query_type"] = plan["query_type"]
-        state["planning_reason"] = plan["reason"]
+        # ---------------------------------------------------------
+        # Store Planner Output
+        # ---------------------------------------------------------
+
+        state["query_type"] = plan.get(
+            "query_type",
+            "knowledge",
+        )
+
+        state["execution_plan"] = plan.get(
+            "execution_plan",
+            {
+                "route": "retriever",
+                "reflect": True,
+                "verify": False,
+            },
+        )
+
+        state["planning_reason"] = plan.get(
+            "reason",
+            "",
+        )
+
+        # ---------------------------------------------------------
+        # Execution Trace
+        # ---------------------------------------------------------
+
+        state.setdefault(
+            "execution_trace",
+            [],
+        ).append(
+            {
+                "agent": "PlannerAgent",
+                "query_type": state["query_type"],
+                "route": state["execution_plan"].get(
+                    "route",
+                    "retriever",
+                ),
+            }
+        )
 
         return state

@@ -1,17 +1,27 @@
+import logging
+
 import requests
 
 from app.core.config import settings
-from app.prompts.summarizer_prompt import SUMMARIZER_PROMPT
+from app.prompts.answer_prompt import ANSWER_PROMPT
+from app.prompts.general_answer_prompt import GENERAL_ANSWER_PROMPT
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Generic LLM Client
+# =============================================================================
 
 def call_llm(prompt: str) -> str:
     """
-    Generic function to send a prompt to the configured LLM.
+    Generic transport layer for communicating with the configured LLM.
     """
 
-    print("=" * 80)
-    print("OLLAMA MODEL:", settings.OLLAMA_MODEL)
-    print("PROMPT LENGTH:", len(prompt))
-    print("=" * 80)
+    logger.info(
+        "Calling LLM | model=%s | prompt_length=%d",
+        settings.OLLAMA_MODEL,
+        len(prompt),
+    )
 
     try:
         response = requests.post(
@@ -24,12 +34,9 @@ def call_llm(prompt: str) -> str:
             timeout=120,
         )
 
-        print("OLLAMA STATUS:", response.status_code)
-
-        if response.status_code != 200:
-            print(response.text)
-
         response.raise_for_status()
+
+        logger.info("LLM completed successfully.")
 
         return response.json().get(
             "response",
@@ -37,40 +44,60 @@ def call_llm(prompt: str) -> str:
         )
 
     except requests.exceptions.RequestException:
-        print("OLLAMA REQUEST FAILED")
+        logger.exception("LLM request failed.")
         raise
 
+
+# =============================================================================
+# Enterprise RAG Answer Generation
+# =============================================================================
 
 def generate_answer(
     question: str,
     context: str,
     memory_context: str = "",
-):
+) -> str:
     """
-    Build the RAG prompt and call the LLM.
+    Generate an answer using enterprise knowledge retrieved
+    from the RAG pipeline.
     """
 
-    prompt = f"""
-You are an enterprise AI assistant.
+    prompt = ANSWER_PROMPT.format(
+        memory_context=memory_context,
+        context=context,
+        question=question,
+    )
 
-Use the retrieved CONTEXT as the primary source of truth.
+    logger.debug(
+        "Generating RAG answer | context_length=%d | memory_length=%d",
+        len(context),
+        len(memory_context),
+    )
 
-Use the Conversation Memory only to understand follow-up
-questions and references.
+    return call_llm(prompt)
 
-If the answer is not present in the CONTEXT,
-say that the information was not found.
 
-Conversation Memory:
-{memory_context}
+# =============================================================================
+# General Answer Generation
+# =============================================================================
 
-Retrieved Context:
-{context}
+def generate_general_answer(
+    question: str,
+    memory_context: str = "",
+) -> str:
+    """
+    Generate a conversational answer that does not require
+    enterprise document retrieval.
+    """
 
-Current Question:
-{question}
+    prompt = GENERAL_ANSWER_PROMPT.format(
+        memory_context=memory_context,
+        question=question,
+    )
 
-Answer:
-"""
+    logger.debug(
+        "Generating general answer | memory_length=%d",
+        len(memory_context),
+    )
 
     return call_llm(prompt)

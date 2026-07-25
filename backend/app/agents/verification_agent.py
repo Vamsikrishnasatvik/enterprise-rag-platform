@@ -1,9 +1,15 @@
+import logging
+
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
+
 from app.services.verification_service import verify_answer
+
+logger = logging.getLogger(__name__)
 
 
 class VerificationAgent(BaseAgent):
+
     def __init__(self):
         super().__init__("VerificationAgent")
 
@@ -12,23 +18,88 @@ class VerificationAgent(BaseAgent):
         state: GraphState,
     ) -> GraphState:
 
+        # ---------------------------------------------------------
+        # Skip if no retrieval happened
+        # ---------------------------------------------------------
+
+        if not state.get("retrieved_chunks"):
+
+            logger.info(
+                "Verification skipped (no retrieved chunks)."
+            )
+
+            return state
+
+        # ---------------------------------------------------------
+        # Verify Answer
+        # ---------------------------------------------------------
+
         verification = verify_answer(
             question=state["question"],
-            context=state["compressed_context"],
             answer=state["answer"],
+            context=state.get(
+                "retrieval_context",
+                "",
+            ),
         )
 
-        state["verification"] = {
-            "verified": False,
-            "reason": "Testing retry loop"
-        }
+        # ---------------------------------------------------------
+        # Store Verification
+        # ---------------------------------------------------------
 
-        state["verification_passed"] = False
-        state["verification_reason"] = "Testing retry loop"
+        state["verification"] = verification
 
-        if state["retry_count"] < state["max_retries"]:
-            state["retry_required"] = True
-        else:
-            state["retry_required"] = False
+        state["verification_passed"] = verification.get(
+            "supported",
+            False,
+        )
+
+        state["verification_reason"] = verification.get(
+            "reason",
+            "",
+        )
+
+        # ---------------------------------------------------------
+        # Retry Decision
+        # ---------------------------------------------------------
+
+        confidence = verification.get(
+            "confidence",
+            0.0,
+        )
+
+        retry = (
+            not verification.get(
+                "supported",
+                False,
+            )
+            or confidence < 0.60
+        )
+
+        state["retry_required"] = retry
+
+        # ---------------------------------------------------------
+        # Execution Trace
+        # ---------------------------------------------------------
+
+        state.setdefault(
+            "execution_trace",
+            [],
+        ).append(
+            {
+                "agent": "VerificationAgent",
+                "supported": verification.get(
+                    "supported",
+                    False,
+                ),
+                "confidence": confidence,
+                "retry": retry,
+            }
+        )
+
+        logger.info(
+            "Verification Result: %s",
+            verification,
+        )
 
         return state

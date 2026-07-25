@@ -1,36 +1,135 @@
 import json
+import logging
 
-from app.prompts.verification_prompt import (
-    VERIFICATION_PROMPT,
-)
+from app.prompts.verification_prompt import VERIFICATION_PROMPT
 from app.services.llm_service import call_llm
+
+logger = logging.getLogger(__name__)
+
+
+DEFAULT_VERIFICATION = {
+    "supported": False,
+    "confidence": 0.0,
+    "missing_information": "",
+    "hallucinations": [],
+    "reason": "Verification failed.",
+}
 
 
 def verify_answer(
     question: str,
-    context: str,
     answer: str,
-):
-    prompt = f"""
-{VERIFICATION_PROMPT}
+    context: str,
+) -> dict:
+    """
+    Verify whether the generated answer is fully supported
+    by the retrieved enterprise context.
+    """
 
-Question:
-{question}
+    prompt = VERIFICATION_PROMPT.format(
+        question=question,
+        answer=answer,
+        context=context,
+    )
 
-Retrieved Context:
-{context}
+    logger.info(
+        "========== Verification Prompt ==========\n%s",
+        prompt,
+    )
 
-Generated Answer:
-{answer}
-"""
+    response = call_llm(prompt).strip()
 
-    response = call_llm(prompt)
+    logger.info(
+        "========== Verification Raw Response ==========\n%s",
+        response,
+    )
+
+    # ---------------------------------------------------------
+    # Remove Markdown
+    # ---------------------------------------------------------
+
+    if response.startswith("```"):
+        response = (
+            response.replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
+
+    # ---------------------------------------------------------
+    # Parse JSON
+    # ---------------------------------------------------------
 
     try:
-        return json.loads(response)
+        verification = json.loads(response)
 
-    except Exception:
-        return {
-            "verified": False,
-            "reason": "Verification failed.",
-        }
+    except json.JSONDecodeError:
+
+        logger.exception(
+            "Verification JSON parsing failed."
+        )
+
+        return DEFAULT_VERIFICATION.copy()
+
+    # ---------------------------------------------------------
+    # Validate Required Fields
+    # ---------------------------------------------------------
+
+    verification.setdefault("supported", False)
+    verification.setdefault("confidence", 0.0)
+    verification.setdefault("missing_information", "")
+    verification.setdefault("hallucinations", [])
+    verification.setdefault("reason", "")
+
+    # ---------------------------------------------------------
+    # Normalize Confidence
+    # ---------------------------------------------------------
+
+    try:
+        confidence = float(
+            verification["confidence"]
+        )
+    except (ValueError, TypeError):
+        confidence = 0.0
+
+    verification["confidence"] = max(
+        0.0,
+        min(confidence, 1.0),
+    )
+
+    # ---------------------------------------------------------
+    # Normalize Boolean
+    # ---------------------------------------------------------
+
+    verification["supported"] = bool(
+        verification["supported"]
+    )
+
+    # ---------------------------------------------------------
+    # Normalize Lists
+    # ---------------------------------------------------------
+
+    if not isinstance(
+        verification["hallucinations"],
+        list,
+    ):
+        verification["hallucinations"] = [
+            str(
+                verification["hallucinations"]
+            )
+        ]
+
+    verification["missing_information"] = str(
+        verification["missing_information"]
+    )
+
+    verification["reason"] = str(
+        verification["reason"]
+    )
+
+    logger.info(
+        "Verification Decision | supported=%s | confidence=%.2f",
+        verification["supported"],
+        verification["confidence"],
+    )
+
+    return verification

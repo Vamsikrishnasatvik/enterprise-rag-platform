@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict
+from typing import TypedDict, List, Dict, Any
 
 
 class GraphState(TypedDict, total=False):
@@ -6,74 +6,97 @@ class GraphState(TypedDict, total=False):
     Shared state passed between all agents.
     """
 
-    # -----------------------------
+    # ==========================================================
     # User Input
-    # -----------------------------
+    # ==========================================================
+
     question: str
 
-    # -----------------------------
+    # ==========================================================
     # Planner
-    # -----------------------------
-    execution_plan: dict
+    # ==========================================================
+
+    execution_plan: Dict[str, bool]
     query_type: str
     planning_reason: str
 
-    # -----------------------------
+    # ==========================================================
     # Supervisor
-    # -----------------------------
+    # ==========================================================
+
     next_node: str
     routing_reason: str
     needs_retrieval: bool
     needs_verification: bool
 
-    # -----------------------------
-    # Memory
-    # -----------------------------
+    # ==========================================================
+    # Conversation Memory
+    # ==========================================================
+
     conversation_summary: str
-    recent_messages: list
-    conversation_history: list          # Temporary (remove later)
+    recent_messages: List[Dict]
     memory_context: str
 
-    # -----------------------------
+    # ==========================================================
     # Retrieval
-    # -----------------------------
+    # ==========================================================
+
     retrieval_query: str
     retrieval_limit: int
     retrieval_strategy: str
-    retrieved_chunks: list
-    compressed_context: str             # Later rename to retrieval_context
 
-    # -----------------------------
+    retrieved_chunks: List[Any]
+
+    # Final context passed to Answer and Reflection agents
+    retrieval_context: str
+
+    retrieved_document_count: int
+    retrieval_score: float
+
+    # ==========================================================
     # Answer
-    # -----------------------------
+    # ==========================================================
+
     answer: str
     citations: List[Dict]
 
-    # -----------------------------
+    # ==========================================================
     # Reflection
-    # -----------------------------
-    reflection: dict
+    # ==========================================================
+
+    reflection: Dict[str, Any]
     confidence_score: float
     needs_retry: bool
 
-    # -----------------------------
-    # Monitoring
-    # -----------------------------
-    execution_trace: List[str]
-    agent_timings: Dict[str, float]
-    retry_count: int
-    errors: List[str]
-
-    # -----------------------------
+    # ==========================================================
     # Verification
-    # -----------------------------
-    verification: dict
+    # ==========================================================
+
+    verification: Dict[str, Any]
     verification_passed: bool
     verification_reason: str
 
-    # -----------------------------
+    # ==========================================================
     # Retry
-    # -----------------------------
+    # ==========================================================
+
     retry_required: bool
     retry_reason: str
+    retry_count: int
     max_retries: int
+
+    # ==========================================================
+    # Monitoring
+    # ==========================================================
+
+    execution_trace: List[Dict]
+    agent_timings: Dict[str, float]
+    errors: List[str]
+
+    # ==========================================================
+    # Tool Calling (Future)
+    # ==========================================================
+
+    selected_tool: str
+    tool_result: Dict[str, Any]
+    tool_reason: str

@@ -1,34 +1,128 @@
+import logging
+
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
+from app.services.reflection_service import evaluate_answer
+
+logger = logging.getLogger(__name__)
+
 
 class ReflectionAgent(BaseAgent):
+
     def __init__(self):
         super().__init__("ReflectionAgent")
 
     def run(self, state: GraphState) -> GraphState:
-        answer = state.get("answer", "")
-        retrieved_chunks = state.get("retrieved_chunks", [])
 
-        confidence = 1.0
+        # ---------------------------------------------------------
+        # Skip Reflection if no retrieval occurred
+        # ---------------------------------------------------------
 
-        if len(answer) < 100:
-            confidence -= 0.3
+        if not state.get("retrieved_chunks"):
+            logger.info(
+                "Reflection skipped (no retrieved chunks)."
+            )
+            return state
 
-        if not retrieved_chunks:
-            confidence -= 0.2
+        # ---------------------------------------------------------
+        # Log Context
+        # ---------------------------------------------------------
 
-        confidence = max(confidence, 0.0)
+        logger.info(
+            "Reflection Context:\n%s",
+            state.get(
+                "retrieval_context",
+                "",
+            ),
+        )
+
+        logger.info(
+            "Reflection Answer:\n%s",
+            state.get(
+                "answer",
+                "",
+            ),
+        )
+
+        # ---------------------------------------------------------
+        # Evaluate Answer
+        # ---------------------------------------------------------
+
+        reflection = evaluate_answer(
+            question=state["question"],
+            answer=state["answer"],
+            context=state.get(
+                "retrieval_context",
+                "",
+            ),
+        )
+
+        # ---------------------------------------------------------
+        # Log Reflection Result
+        # ---------------------------------------------------------
+
+        logger.info(
+            "Reflection Result: %s",
+            reflection,
+        )
+
+        # ---------------------------------------------------------
+        # Store Reflection
+        # ---------------------------------------------------------
+
+        state["reflection"] = reflection
+
+        # ---------------------------------------------------------
+        # Normalize Confidence
+        # ---------------------------------------------------------
+
+        try:
+            confidence = float(
+                reflection.get(
+                    "confidence",
+                    0.0,
+                )
+            )
+        except (TypeError, ValueError):
+            confidence = 0.0
 
         state["confidence_score"] = confidence
 
-        state["needs_retry"] = confidence < 0.5
+        # ---------------------------------------------------------
+        # Retry Decision
+        # ---------------------------------------------------------
 
-        state["reflection"] = {
-            "answer_length": len(answer),
-            "retrieved_chunks": len(retrieved_chunks),
-            "confidence": confidence,
-            "needs_retry": state["needs_retry"],
-        }
+        needs_retry = (
+            reflection.get("retry", False)
+            or confidence < 0.60
+        )
+
+        state["needs_retry"] = needs_retry
+        state["retry_required"] = needs_retry
+
+        state["retry_reason"] = reflection.get(
+            "feedback",
+            "",
+        )
+
+        # ---------------------------------------------------------
+        # Execution Trace
+        # ---------------------------------------------------------
+
+        state.setdefault(
+            "execution_trace",
+            [],
+        ).append(
+            {
+                "agent": "ReflectionAgent",
+                "passed": reflection.get(
+                    "passed",
+                    False,
+                ),
+                "confidence": confidence,
+                "retry": needs_retry,
+            }
+        )
 
         return state

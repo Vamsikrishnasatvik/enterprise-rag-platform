@@ -1,8 +1,13 @@
 from sqlalchemy.orm import Session
 
+from app.prompts.memory_prompt import MEMORY_PROMPT
+
 from app.services.conversation_service import (
     get_summary,
 )
+
+from app.services.llm_service import call_llm
+
 from app.services.message_service import (
     get_chat_history,
     get_recent_messages,
@@ -14,10 +19,12 @@ class MemoryService:
     Responsible for preparing conversation memory
     for the agent workflow.
 
-    Version 2:
+    Version 3:
     - Load conversation summary
     - Load recent messages
-    - Build memory context
+    - Load full history
+    - Generate intelligent memory using the LLM
+    - Fall back to deterministic memory if LLM fails
 
     Future versions:
     - Semantic memory retrieval
@@ -28,6 +35,7 @@ class MemoryService:
         self,
         db: Session,
         conversation_id: int,
+        question: str,
     ) -> dict:
 
         summary = get_summary(
@@ -41,15 +49,15 @@ class MemoryService:
             limit=10,
         )
 
-        # Keep temporarily for backward compatibility
         conversation_history = get_chat_history(
             db=db,
             conversation_id=conversation_id,
         )
 
-        memory_context = self._build_memory_context(
+        memory_context = self.generate_memory_context(
             summary=summary,
-            recent_messages=recent_messages,
+            history=conversation_history,
+            question=question,
         )
 
         return {
@@ -59,11 +67,45 @@ class MemoryService:
             "memory_context": memory_context,
         }
 
-    def _build_memory_context(
+    def generate_memory_context(
         self,
         summary: str | None,
+        history: list[dict],
+        question: str,
+    ) -> str:
+        """
+        Uses the LLM to create an intelligent memory summary
+        for downstream agents.
+        """
+
+        history_text = "\n".join(
+            f"{message['role'].capitalize()}: {message['content']}"
+            for message in history
+        )
+
+        prompt = MEMORY_PROMPT.format(
+            summary=summary or "",
+            history=history_text,
+            question=question,
+        )
+
+        try:
+            return call_llm(prompt).strip()
+
+        except Exception:
+            return self._build_memory_context(
+                summary=summary,
+                recent_messages=history[-10:],
+            )
+
+    def _build_memory_context(
+        self,
+        summary: str |None,
         recent_messages: list[dict],
     ) -> str:
+        """
+        Deterministic fallback if the Memory LLM fails.
+        """
 
         sections = []
 

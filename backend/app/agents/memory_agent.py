@@ -27,6 +27,7 @@ class MemoryAgent(BaseAgent):
         memory = memory_service.get_memory_context(
             db=db,
             conversation_id=conversation_id,
+            question=state["question"],
         )
 
         state["conversation_summary"] = memory["conversation_summary"]

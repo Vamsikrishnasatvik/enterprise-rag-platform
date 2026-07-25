@@ -1,44 +1,79 @@
 import logging
+import time
 from abc import ABC, abstractmethod
-from time import perf_counter
-
-from app.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
+
     def __init__(self, name: str):
         self.name = name
 
-    def __call__(self, state: GraphState) -> GraphState:
-        logger.info(f"[{self.name}] START")
+    def __call__(self, state):
 
-        start = perf_counter()
+        logger.info("[%s] START", self.name)
+
+        start = time.perf_counter()
 
         try:
-            updated_state = self.run(state)
 
-            updated_state.setdefault("execution_trace", []).append(self.name)
-            updated_state.setdefault("agent_timings", {})[self.name] = (
-                perf_counter() - start
+            state = self.run(state)
+
+            elapsed = round(time.perf_counter() - start, 3)
+
+            state.setdefault(
+                "agent_timings",
+                {},
+            )[self.name] = elapsed
+
+            state.setdefault(
+                "execution_trace",
+                [],
+            ).append(
+                {
+                    "agent": self.name,
+                    "status": "success",
+                    "duration": elapsed,
+                }
             )
 
             logger.info(
-                f"[{self.name}] END ({updated_state['agent_timings'][self.name]:.3f}s)"
+                "[%s] END (%.3fs)",
+                self.name,
+                elapsed,
             )
 
-            return updated_state
+            return state
 
-        except Exception as e:
-            logger.exception(f"[{self.name}] FAILED")
+        except Exception as exc:
 
-            state.setdefault("errors", []).append(str(e))
+            elapsed = round(time.perf_counter() - start, 3)
+
+            state.setdefault(
+                "errors",
+                [],
+            ).append(
+                {
+                    "agent": self.name,
+                    "error": str(exc),
+                }
+            )
+
+            state.setdefault(
+                "execution_trace",
+                [],
+            ).append(
+                {
+                    "agent": self.name,
+                    "status": "failed",
+                    "duration": elapsed,
+                }
+            )
+
+            logger.exception("[%s] FAILED", self.name)
             raise
 
     @abstractmethod
-    def run(self, state: GraphState) -> GraphState:
-        """
-        Implement agent logic.
-        """
+    def run(self, state):
         pass
