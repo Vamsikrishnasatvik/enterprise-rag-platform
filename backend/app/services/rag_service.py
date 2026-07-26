@@ -8,16 +8,20 @@ from app.services.message_service import create_message
 logger = logging.getLogger(__name__)
 
 
-def answer_question(
+# =============================================================================
+# State Builder
+# =============================================================================
+
+def build_initial_state(
     db: Session,
     conversation_id: int,
     question: str,
-):
+) -> dict:
     """
-    Production Agentic RAG pipeline powered by LangGraph.
+    Build the initial GraphState for the workflow.
     """
 
-    state = {
+    return {
 
         # ---------------------------------------------------------------------
         # Runtime
@@ -118,30 +122,20 @@ def answer_question(
         "tool_reason": "",
     }
 
-    # -------------------------------------------------------------------------
-    # Execute Workflow
-    # -------------------------------------------------------------------------
 
-    result = graph.invoke(state)
+# =============================================================================
+# Persistence
+# =============================================================================
 
-    # -------------------------------------------------------------------------
-    # Workflow Summary
-    # -------------------------------------------------------------------------
-
-    logger.info("=" * 80)
-    logger.info("Workflow Complete")
-    logger.info("Query Type      : %s", result.get("query_type"))
-    logger.info("Route           : %s", result.get("next_node"))
-    logger.info("Retries         : %d", result.get("retry_count", 0))
-    logger.info("Documents       : %d", result.get("retrieved_document_count", 0))
-    logger.info("Top Score       : %.4f", result.get("retrieval_score", 0.0))
-    logger.info("Confidence      : %.2f", result.get("confidence_score", 0.0))
-    logger.info("Answer Length   : %d", len(result.get("answer", "")))
-    logger.info("=" * 80)
-
-    # -------------------------------------------------------------------------
-    # Persist Messages
-    # -------------------------------------------------------------------------
+def persist_messages(
+    db: Session,
+    conversation_id: int,
+    question: str,
+    answer: str,
+):
+    """
+    Persist the user and assistant messages.
+    """
 
     create_message(
         db=db,
@@ -156,12 +150,18 @@ def answer_question(
         conversation_id=conversation_id,
         tenant_id=1,
         role="assistant",
-        content=result["answer"],
+        content=answer,
     )
 
-    # -------------------------------------------------------------------------
-    # Sources
-    # -------------------------------------------------------------------------
+
+# =============================================================================
+# Source Builder
+# =============================================================================
+
+def build_sources(result: dict) -> list[dict]:
+    """
+    Convert retrieved chunks into API response format.
+    """
 
     sources = []
 
@@ -176,13 +176,42 @@ def answer_question(
             }
         )
 
-    # -------------------------------------------------------------------------
-    # API Response
-    # -------------------------------------------------------------------------
+    return sources
+
+
+# =============================================================================
+# Workflow Logging
+# =============================================================================
+
+def log_workflow_summary(result: dict):
+    """
+    Log the overall workflow execution summary.
+    """
+
+    logger.info("=" * 80)
+    logger.info("Workflow Complete")
+    logger.info("Query Type      : %s", result.get("query_type"))
+    logger.info("Route           : %s", result.get("next_node"))
+    logger.info("Retries         : %d", result.get("retry_count", 0))
+    logger.info("Documents       : %d", result.get("retrieved_document_count", 0))
+    logger.info("Top Score       : %.4f", result.get("retrieval_score", 0.0))
+    logger.info("Confidence      : %.2f", result.get("confidence_score", 0.0))
+    logger.info("Answer Length   : %d", len(result.get("answer", "")))
+    logger.info("=" * 80)
+
+
+# =============================================================================
+# Response Builder
+# =============================================================================
+
+def build_response(result: dict) -> dict:
+    """
+    Build the API response.
+    """
 
     return {
         "answer": result["answer"],
-        "sources": sources,
+        "sources": build_sources(result),
         "citations": result.get("citations", []),
         "reflection": result.get("reflection", {}),
         "verification": result.get("verification", {}),
@@ -195,3 +224,47 @@ def answer_question(
         "agent_timings": result.get("agent_timings", {}),
         "errors": result.get("errors", []),
     }
+
+
+# =============================================================================
+# Public API
+# =============================================================================
+
+def answer_question(
+    db: Session,
+    conversation_id: int,
+    question: str,
+):
+    """
+    Execute the complete Agentic RAG workflow.
+    """
+
+    state = build_initial_state(
+        db=db,
+        conversation_id=conversation_id,
+        question=question,
+    )
+
+    logger.info(
+        "Starting Agentic RAG Workflow | conversation=%s | max_retries=%d",
+        conversation_id,
+        state["max_retries"],
+    )
+
+    result = graph.invoke(
+        state,
+        config={
+            "recursion_limit": 100,
+        },
+    )
+
+    log_workflow_summary(result)
+
+    persist_messages(
+        db=db,
+        conversation_id=conversation_id,
+        question=question,
+        answer=result["answer"],
+    )
+
+    return build_response(result)

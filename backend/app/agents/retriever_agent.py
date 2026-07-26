@@ -4,6 +4,10 @@ from app.graph.state import GraphState
 from app.services.context_service import build_context
 from app.services.retrieval_service import search_chunks
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class RetrieverAgent(BaseAgent):
 
@@ -12,15 +16,17 @@ class RetrieverAgent(BaseAgent):
 
     def run(self, state: GraphState) -> GraphState:
 
-        # ---------------------------------------------------------
-        # Build Retrieval Query
-        # ---------------------------------------------------------
+        retrieval_query = state.get(
+            "retrieval_query",
+            state["question"],
+        )
 
-        retrieval_query = self._build_retrieval_query(state)
-
-        # ---------------------------------------------------------
-        # Search Vector Store
-        # ---------------------------------------------------------
+        logger.info(
+            "Retriever | retry=%d | strategy=%s | top_k=%d",
+            state.get("retry_count", 0),
+            state.get("retrieval_strategy", "semantic"),
+            state.get("retrieval_limit", 3),
+        )
 
         results = search_chunks(
             query=retrieval_query,
@@ -31,23 +37,11 @@ class RetrieverAgent(BaseAgent):
             ),
         )
 
-        # ---------------------------------------------------------
-        # Build Retrieval Context
-        # ---------------------------------------------------------
-
         retrieval_context = build_context(results)
-
-        # ---------------------------------------------------------
-        # Store Retrieval Results
-        # ---------------------------------------------------------
 
         state["retrieval_query"] = retrieval_query
         state["retrieved_chunks"] = results
         state["retrieval_context"] = retrieval_context
-
-        # ---------------------------------------------------------
-        # Retrieval Statistics
-        # ---------------------------------------------------------
 
         unique_documents = {
             chunk.payload["document_id"]
@@ -56,14 +50,17 @@ class RetrieverAgent(BaseAgent):
 
         state["retrieved_document_count"] = len(unique_documents)
 
-        state["retrieval_score"] = max(
+        raw_score = max(
             (chunk.score for chunk in results),
             default=0.0,
         )
 
-        # ---------------------------------------------------------
-        # Execution Trace
-        # ---------------------------------------------------------
+        logger.info(
+            "Retriever raw score = %.4f",
+            raw_score,
+        )
+
+        state["retrieval_score"] = raw_score
 
         state.setdefault(
             "execution_trace",
@@ -76,40 +73,12 @@ class RetrieverAgent(BaseAgent):
                     "retrieval_strategy",
                     "semantic",
                 ),
+                "retry": state.get("retry_count", 0),
                 "top_k": state["retrieval_limit"],
                 "chunks": len(results),
                 "documents": state["retrieved_document_count"],
-                "max_score": state["retrieval_score"],
+                "max_score": raw_score,
             }
         )
 
         return state
-
-    def _build_retrieval_query(
-        self,
-        state: GraphState,
-    ) -> str:
-        """
-        Build a retrieval query using conversation memory
-        and the current user question.
-        """
-
-        memory = (
-            state.get("memory_context", "")
-            .strip()
-        )
-
-        question = state["question"].strip()
-
-        if not memory:
-            return question
-
-        return f"""
-Conversation Context:
-
-{memory}
-
-Current Question:
-
-{question}
-""".strip()

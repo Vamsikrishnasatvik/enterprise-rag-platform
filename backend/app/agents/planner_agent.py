@@ -27,7 +27,7 @@ class PlannerAgent(BaseAgent):
             "knowledge",
         )
 
-        state["execution_plan"] = plan.get(
+        execution_plan = plan.get(
             "execution_plan",
             {
                 "route": "retriever",
@@ -35,6 +35,8 @@ class PlannerAgent(BaseAgent):
                 "verify": False,
             },
         )
+
+        state["execution_plan"] = execution_plan
 
         state["planning_reason"] = plan.get(
             "reason",
@@ -52,7 +54,7 @@ class PlannerAgent(BaseAgent):
             {
                 "agent": "PlannerAgent",
                 "query_type": state["query_type"],
-                "route": state["execution_plan"].get(
+                "route": execution_plan.get(
                     "route",
                     "retriever",
                 ),

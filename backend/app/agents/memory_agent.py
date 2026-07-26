@@ -30,9 +30,9 @@ class MemoryAgent(BaseAgent):
             question=state["question"],
         )
 
-        state["conversation_summary"] = memory["conversation_summary"]
-        state["recent_messages"] = memory["recent_messages"]
-        state["conversation_history"] = memory["conversation_history"]   # Temporary
-        state["memory_context"] = memory["memory_context"]
+        state["conversation_summary"] = memory.get("conversation_summary", "")
+        state["recent_messages"] = memory.get("recent_messages", [])
+        state["conversation_history"] = memory.get("conversation_history", [])
+        state["memory_context"] = memory.get("memory_context", "")
 
         return state

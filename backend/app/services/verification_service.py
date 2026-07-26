@@ -10,10 +10,24 @@ logger = logging.getLogger(__name__)
 DEFAULT_VERIFICATION = {
     "supported": False,
     "confidence": 0.0,
-    "missing_information": "",
+    "missing_information": [],
     "hallucinations": [],
     "reason": "Verification failed.",
 }
+
+
+def to_bool(value):
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        return value.strip().lower() in {
+            "true",
+            "yes",
+            "1",
+        }
+
+    return bool(value)
 
 
 def verify_answer(
@@ -76,7 +90,7 @@ def verify_answer(
 
     verification.setdefault("supported", False)
     verification.setdefault("confidence", 0.0)
-    verification.setdefault("missing_information", "")
+    verification.setdefault("missing_information", [])
     verification.setdefault("hallucinations", [])
     verification.setdefault("reason", "")
 
@@ -100,12 +114,12 @@ def verify_answer(
     # Normalize Boolean
     # ---------------------------------------------------------
 
-    verification["supported"] = bool(
+    verification["supported"] = to_bool(
         verification["supported"]
     )
 
     # ---------------------------------------------------------
-    # Normalize Lists
+    # Normalize Hallucinations
     # ---------------------------------------------------------
 
     if not isinstance(
@@ -118,18 +132,69 @@ def verify_answer(
             )
         ]
 
-    verification["missing_information"] = str(
-        verification["missing_information"]
-    )
+    # Remove bogus "No hallucination..." responses
+
+    verification["hallucinations"] = [
+        item
+        for item in verification["hallucinations"]
+        if str(item).strip().lower()
+        not in {
+            "",
+            "none",
+            "n/a",
+            "no hallucination detected",
+        }
+    ]
+
+    # ---------------------------------------------------------
+    # Normalize Missing Information
+    # ---------------------------------------------------------
+
+    if not isinstance(
+        verification["missing_information"],
+        list,
+    ):
+        verification["missing_information"] = [
+            str(
+                verification["missing_information"]
+            )
+        ]
+
+    verification["missing_information"] = [
+        item
+        for item in verification["missing_information"]
+        if str(item).strip().lower()
+        not in {
+            "",
+            "none",
+            "n/a",
+        }
+    ]
+
+    # ---------------------------------------------------------
+    # Normalize Reason
+    # ---------------------------------------------------------
 
     verification["reason"] = str(
         verification["reason"]
     )
 
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+
     logger.info(
-        "Verification Decision | supported=%s | confidence=%.2f",
+        (
+            "Verification Decision | "
+            "supported=%s | "
+            "confidence=%.2f | "
+            "hallucinations=%d | "
+            "missing=%d"
+        ),
         verification["supported"],
         verification["confidence"],
+        len(verification["hallucinations"]),
+        len(verification["missing_information"]),
     )
 
     return verification

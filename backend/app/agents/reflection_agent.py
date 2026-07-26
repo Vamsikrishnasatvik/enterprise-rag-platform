@@ -26,6 +26,55 @@ class ReflectionAgent(BaseAgent):
             return state
 
         # ---------------------------------------------------------
+        # Deterministic Pass:
+        # Low retrieval score + fallback answer
+        # ---------------------------------------------------------
+
+        if (
+            state.get("retrieval_score", 0.0) < 0.55
+            and state.get("answer", "").strip()
+            == "I couldn't find this information in the retrieved documents."
+        ):
+
+            logger.info(
+                "Low-confidence retrieval with fallback answer. "
+                "Skipping LLM reflection."
+            )
+
+            reflection = {
+                "passed": True,
+                "confidence": 0.92,
+                "grounded": True,
+                "retry": False,
+                "issues": [],
+                "feedback": (
+                    "Retrieved documents do not contain the requested "
+                    "information. Fallback response is correct."
+                ),
+            }
+
+            state["reflection"] = reflection
+            state["confidence_score"] = reflection["confidence"]
+            state["needs_retry"] = False
+            state["retry_required"] = False
+            state["retry_reason"] = ""
+
+            state.setdefault(
+                "execution_trace",
+                [],
+            ).append(
+                {
+                    "agent": "ReflectionAgent",
+                    "passed": True,
+                    "confidence": 0.92,
+                    "retry": False,
+                    "reason": "low_confidence_fallback",
+                }
+            )
+
+            return state
+
+        # ---------------------------------------------------------
         # Log Context
         # ---------------------------------------------------------
 
@@ -46,7 +95,7 @@ class ReflectionAgent(BaseAgent):
         )
 
         # ---------------------------------------------------------
-        # Evaluate Answer
+        # Evaluate Answer using LLM
         # ---------------------------------------------------------
 
         reflection = evaluate_answer(
@@ -100,7 +149,6 @@ class ReflectionAgent(BaseAgent):
 
         state["needs_retry"] = needs_retry
         state["retry_required"] = needs_retry
-
         state["retry_reason"] = reflection.get(
             "feedback",
             "",

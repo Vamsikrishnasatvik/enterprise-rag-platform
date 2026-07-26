@@ -93,7 +93,6 @@ def create_execution_plan(
     valid_routes = {
         "answer",
         "retriever",
-        "tool",
     }
 
     if execution_plan["route"] not in valid_routes:
