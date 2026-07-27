@@ -2,7 +2,7 @@ from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
 from app.services.context_service import build_context
-from app.services.retrieval_service import search_chunks
+from app.services.retrieval import HybridRetriever
 
 import logging
 
@@ -28,7 +28,9 @@ class RetrieverAgent(BaseAgent):
             state.get("retrieval_limit", 3),
         )
 
-        results = search_chunks(
+        retriever = HybridRetriever()
+
+        results = retriever.retrieve(
             query=retrieval_query,
             limit=state["retrieval_limit"],
             strategy=state.get(
