@@ -5,6 +5,7 @@ from app.graph.state import GraphState
 
 from app.services.context_service import build_context
 from app.services.retrieval import HybridRetriever
+from app.services.retrieval.dynamic_topk import DynamicTopKSelector
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ class RetrieverAgent(BaseAgent):
     def __init__(self):
         super().__init__("RetrieverAgent")
         self.retriever = HybridRetriever()
+        self.selector = DynamicTopKSelector()
 
     def run(
         self,
@@ -34,21 +36,26 @@ class RetrieverAgent(BaseAgent):
             "semantic",
         )
 
-        retrieval_limit = state.get(
-            "retrieval_limit",
-            3,
-        )
-
         retry_count = state.get(
             "retry_count",
             0,
         )
 
+        # ---------------------------------------------------------
+        # Dynamic Top-K Selection
+        # ---------------------------------------------------------
+
+        dynamic_top_k = self.selector.select(
+            retrieval_query,
+        )
+
+        state["retrieval_limit"] = dynamic_top_k
+
         logger.info(
             "Retriever | retry=%d | strategy=%s | top_k=%d",
             retry_count,
             retrieval_strategy,
-            retrieval_limit,
+            dynamic_top_k,
         )
 
         # ---------------------------------------------------------
@@ -57,7 +64,7 @@ class RetrieverAgent(BaseAgent):
 
         results = self.retriever.retrieve(
             query=retrieval_query,
-            limit=retrieval_limit,
+            limit=dynamic_top_k,
             strategy=retrieval_strategy,
         )
 
@@ -115,7 +122,7 @@ class RetrieverAgent(BaseAgent):
                 "query": retrieval_query,
                 "strategy": retrieval_strategy,
                 "retry": retry_count,
-                "top_k": retrieval_limit,
+                "top_k": dynamic_top_k,
                 "chunks": len(results),
                 "documents": state["retrieved_document_count"],
                 "max_score": raw_score,
