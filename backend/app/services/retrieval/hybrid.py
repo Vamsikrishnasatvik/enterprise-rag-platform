@@ -3,6 +3,7 @@ import logging
 from app.services.retrieval.keyword import KeywordRetriever
 from app.services.retrieval.metadata import MetadataRetriever
 from app.services.retrieval.semantic import SemanticRetriever
+from app.services.retrieval.fusion import reciprocal_rank_fusion
 
 logger = logging.getLogger(__name__)
 
