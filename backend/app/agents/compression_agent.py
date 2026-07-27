@@ -7,6 +7,9 @@ from app.services.compression_service import compress_context
 
 logger = logging.getLogger(__name__)
 
+# Compress anything larger than roughly one page of text
+COMPRESSION_THRESHOLD = 1000
+
 
 class CompressionAgent(BaseAgent):
 
@@ -23,7 +26,9 @@ class CompressionAgent(BaseAgent):
 
         if not chunks:
 
-            logger.info("Compression skipped | no retrieved chunks")
+            logger.info(
+                "Compression skipped | no retrieved chunks"
+            )
 
             state["retrieval_context"] = ""
 
@@ -49,16 +54,20 @@ class CompressionAgent(BaseAgent):
             for chunk in chunks
         )
 
+        logger.info(
+            "Compression Check | chunks=%d | context_length=%d",
+            len(chunks),
+            len(context),
+        )
+
         # ---------------------------------------------------------
-        # Skip Compression for Small Contexts
+        # Skip Compression for Small Context
         # ---------------------------------------------------------
 
-        if len(chunks) <= 3 or len(context) < 4000:
+        if len(context) < COMPRESSION_THRESHOLD:
 
             logger.info(
-                "Skipping compression | chunks=%d | context_length=%d",
-                len(chunks),
-                len(context),
+                "Skipping compression | context already small"
             )
 
             state["retrieval_context"] = context
@@ -78,19 +87,27 @@ class CompressionAgent(BaseAgent):
             return state
 
         # ---------------------------------------------------------
-        # Compress Large Context
+        # Compress Context
         # ---------------------------------------------------------
+
+        logger.info(
+            "Compressing context..."
+        )
 
         compressed = compress_context(
             question=state["question"],
             context=context,
         )
 
-        # Fallback if compression fails or returns empty
-        if not compressed.strip():
+        # ---------------------------------------------------------
+        # Compression Fallback
+        # ---------------------------------------------------------
+
+        if not compressed or not compressed.strip():
 
             logger.warning(
-                "Compression returned empty context. Falling back to original."
+                "Compression returned empty context. "
+                "Using original context."
             )
 
             compressed = context
@@ -112,6 +129,10 @@ class CompressionAgent(BaseAgent):
                 "compressed": True,
                 "original_length": len(context),
                 "compressed_length": len(compressed),
+                "compression_ratio": round(
+                    len(compressed) / max(len(context), 1),
+                    2,
+                ),
             }
         )
 
