@@ -6,7 +6,17 @@ from app.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
 
-MIN_RETRIEVAL_SCORE = 0.55
+# =============================================================================
+# Constants
+# =============================================================================
+
+RETRIEVAL_THRESHOLDS = {
+    "semantic": 0.55,
+    "keyword": 0.30,
+    "hybrid": 0.55,  # after hybrid normalization
+}
+
+DEFAULT_QUERY_TYPE = "knowledge"
 
 
 class AnswerAgent(BaseAgent):
@@ -25,7 +35,7 @@ class AnswerAgent(BaseAgent):
 
         query_type = state.get(
             "query_type",
-            "knowledge",
+            DEFAULT_QUERY_TYPE,
         )
 
         retrieval_score = float(
@@ -35,9 +45,38 @@ class AnswerAgent(BaseAgent):
             )
         )
 
+        retrieval_strategy = state.get(
+            "retrieval_strategy",
+            "semantic",
+        )
+
+        threshold = RETRIEVAL_THRESHOLDS.get(
+            retrieval_strategy,
+            RETRIEVAL_THRESHOLDS["semantic"],
+        )
+
         next_node = state.get("next_node")
 
-        generator = AnswerFactory.get(query_type)
+        retrieved_documents = state.get(
+            "retrieved_document_count",
+            0,
+        )
+
+        # Safety fallback
+
+        try:
+            generator = AnswerFactory.get(query_type)
+
+        except Exception:
+
+            logger.warning(
+                "Unknown query type '%s'. Falling back to '%s'.",
+                query_type,
+                DEFAULT_QUERY_TYPE,
+            )
+
+            query_type = DEFAULT_QUERY_TYPE
+            generator = AnswerFactory.get(query_type)
 
         # ---------------------------------------------------------
         # Debug Logging
@@ -47,8 +86,13 @@ class AnswerAgent(BaseAgent):
         logger.info("AnswerAgent")
         logger.info("Query Type      : %s", query_type)
         logger.info("Next Node       : %s", next_node)
+        logger.info("Strategy        : %s", retrieval_strategy)
         logger.info("Retrieval Score : %.4f", retrieval_score)
-        logger.info("Threshold       : %.4f", MIN_RETRIEVAL_SCORE)
+        logger.info("Threshold       : %.4f", threshold)
+        logger.info(
+            "Retrieved Docs  : %d",
+            retrieved_documents,
+        )
         logger.info(
             "Retrieved Chunks: %d",
             len(state.get("retrieved_chunks", [])),
@@ -61,14 +105,16 @@ class AnswerAgent(BaseAgent):
 
         if (
             next_node == "retriever"
-            and retrieval_score < MIN_RETRIEVAL_SCORE
+            and retrieval_score < threshold
+            and retrieved_documents == 0
         ):
 
             logger.warning(
-                "Using fallback answer because retrieval score %.4f "
-                "is below threshold %.4f",
+                "Retrieval score %.4f is below threshold %.4f "
+                "and no documents were retrieved. "
+                "Returning fallback response.",
                 retrieval_score,
-                MIN_RETRIEVAL_SCORE,
+                threshold,
             )
 
             state["answer"] = self._fallback_answer()
@@ -80,7 +126,9 @@ class AnswerAgent(BaseAgent):
                 {
                     "agent": "AnswerAgent",
                     "strategy": "LowConfidenceFallback",
+                    "retrieval_strategy": retrieval_strategy,
                     "retrieval_score": retrieval_score,
+                    "threshold": threshold,
                 }
             )
 
@@ -95,7 +143,17 @@ class AnswerAgent(BaseAgent):
             generator.__class__.__name__,
         )
 
-        state["answer"] = generator.generate(state)
+        try:
+
+            state["answer"] = generator.generate(state)
+
+        except Exception:
+
+            logger.exception(
+                "Answer generation failed."
+            )
+
+            state["answer"] = self._fallback_answer()
 
         state.setdefault(
             "execution_trace",
@@ -105,7 +163,9 @@ class AnswerAgent(BaseAgent):
                 "agent": "AnswerAgent",
                 "query_type": query_type,
                 "strategy": generator.__class__.__name__,
+                "retrieval_strategy": retrieval_strategy,
                 "retrieval_score": retrieval_score,
+                "threshold": threshold,
             }
         )
 
@@ -113,6 +173,11 @@ class AnswerAgent(BaseAgent):
 
     @staticmethod
     def _fallback_answer() -> str:
+        """
+        Return a safe fallback response when answer generation
+        cannot produce a grounded answer.
+        """
+
         return (
             "I couldn't find this information in the retrieved documents."
         )

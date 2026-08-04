@@ -29,3 +29,5 @@ class MessageResponse(BaseModel):
 
 class ConversationQueryRequest(BaseModel):
     query: str
+
+    retrieval_strategy: str = "hybrid"

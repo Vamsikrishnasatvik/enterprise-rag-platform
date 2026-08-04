@@ -24,18 +24,18 @@ class QueryRewriterAgent(BaseAgent):
 
         question = state["question"]
 
-        memory = state.get(
+        memory_context = state.get(
             "memory_context",
             "",
         )
-
+        
         # ---------------------------------------------------------
         # Rewrite Query
         # ---------------------------------------------------------
 
         rewritten_query = rewrite_query(
             question=question,
-            memory=memory,
+            memory_context=memory_context,
         )
 
         # ---------------------------------------------------------

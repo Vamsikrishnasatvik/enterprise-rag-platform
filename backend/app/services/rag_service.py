@@ -7,6 +7,19 @@ from app.services.message_service import create_message
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+DEFAULT_TOP_K = 3
+DEFAULT_MAX_RETRIES = 2
+
+VALID_RETRIEVAL_STRATEGIES = {
+    "semantic",
+    "keyword",
+    "hybrid",
+}
+
 
 # =============================================================================
 # State Builder
@@ -16,6 +29,7 @@ def build_initial_state(
     db: Session,
     conversation_id: int,
     question: str,
+    retrieval_strategy: str = "hybrid",
 ) -> dict:
     """
     Build the initial GraphState for the workflow.
@@ -66,12 +80,13 @@ def build_initial_state(
         # ---------------------------------------------------------------------
 
         "retrieval_query": "",
-        "retrieval_limit": 3,
-        "retrieval_strategy": "semantic",
+        "retrieval_limit": DEFAULT_TOP_K,
+        "retrieval_strategy": retrieval_strategy,
         "retrieved_chunks": [],
         "retrieval_context": "",
         "retrieved_document_count": 0,
         "retrieval_score": 0.0,
+        "reranker_score": 0.0,
 
         # ---------------------------------------------------------------------
         # Answer
@@ -103,7 +118,7 @@ def build_initial_state(
         "retry_required": False,
         "retry_reason": "",
         "retry_count": 0,
-        "max_retries": 2,
+        "max_retries": DEFAULT_MAX_RETRIES,
 
         # ---------------------------------------------------------------------
         # Monitoring
@@ -167,11 +182,13 @@ def build_sources(result: dict) -> list[dict]:
 
     for chunk in result.get("retrieved_chunks", []):
 
+        payload = chunk.payload
+
         sources.append(
             {
-                "chunk_id": chunk.payload["chunk_id"],
-                "document_id": chunk.payload["document_id"],
-                "content": chunk.payload["content"],
+                "chunk_id": payload.get("chunk_id"),
+                "document_id": payload.get("document_id"),
+                "content": payload.get("content", ""),
                 "score": chunk.score,
             }
         )
@@ -234,37 +251,80 @@ def answer_question(
     db: Session,
     conversation_id: int,
     question: str,
+    retrieval_strategy: str = "hybrid",
 ):
     """
     Execute the complete Agentic RAG workflow.
     """
 
+    # -------------------------------------------------------------------------
+    # Validate Retrieval Strategy
+    # -------------------------------------------------------------------------
+
+    if retrieval_strategy not in VALID_RETRIEVAL_STRATEGIES:
+
+        logger.warning(
+            "Unknown retrieval strategy '%s'. Falling back to 'hybrid'.",
+            retrieval_strategy,
+        )
+
+        retrieval_strategy = "hybrid"
+
     state = build_initial_state(
         db=db,
         conversation_id=conversation_id,
         question=question,
+        retrieval_strategy=retrieval_strategy,
     )
 
     logger.info(
-        "Starting Agentic RAG Workflow | conversation=%s | max_retries=%d",
+        "Starting Agentic RAG Workflow | conversation=%s | strategy=%s | top_k=%d | max_retries=%d",
         conversation_id,
+        retrieval_strategy,
+        state["retrieval_limit"],
         state["max_retries"],
     )
 
-    result = graph.invoke(
-        state,
-        config={
-            "recursion_limit": 100,
-        },
-    )
+    # -------------------------------------------------------------------------
+    # Execute Workflow
+    # -------------------------------------------------------------------------
+
+    try:
+
+        result = graph.invoke(
+            state,
+            config={
+                "recursion_limit": 100,
+            },
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Agentic RAG workflow execution failed."
+        )
+
+        raise
 
     log_workflow_summary(result)
 
-    persist_messages(
-        db=db,
-        conversation_id=conversation_id,
-        question=question,
-        answer=result["answer"],
-    )
+    # -------------------------------------------------------------------------
+    # Persist Conversation
+    # -------------------------------------------------------------------------
+
+    try:
+
+        persist_messages(
+            db=db,
+            conversation_id=conversation_id,
+            question=question,
+            answer=result["answer"],
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed to persist conversation messages."
+        )
 
     return build_response(result)

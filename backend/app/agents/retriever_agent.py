@@ -95,18 +95,44 @@ class RetrieverAgent(BaseAgent):
             unique_documents
         )
 
-        raw_score = max(
-            (chunk.score for chunk in results),
+        # ---------------------------------------------------------
+        # Retrieval Confidence
+        # ---------------------------------------------------------
+
+        semantic_score = max(
+            (
+                chunk.payload.get(
+                    "semantic_score",
+                    0.0,
+                )
+                for chunk in results
+            ),
             default=0.0,
         )
 
-        state["retrieval_score"] = raw_score
+        rerank_score = (
+            results[0].payload.get("rerank_score")
+            if results
+            else None
+        )
+
+        # Semantic similarity is the confidence score used by
+        # AnswerAgent thresholds.
+        state["retrieval_score"] = semantic_score
+
+        # Keep reranker score for debugging only.
+        state["reranker_score"] = rerank_score
 
         logger.info(
-            "Retriever | retrieved=%d chunks | documents=%d | max_score=%.4f",
+            "Retriever | retrieved=%d chunks | documents=%d | semantic_score=%.4f | rerank_score=%s",
             len(results),
             state["retrieved_document_count"],
-            raw_score,
+            semantic_score,
+            (
+                f"{rerank_score:.4f}"
+                if rerank_score is not None
+                else "None"
+            ),
         )
 
         # ---------------------------------------------------------
@@ -125,7 +151,8 @@ class RetrieverAgent(BaseAgent):
                 "top_k": dynamic_top_k,
                 "chunks": len(results),
                 "documents": state["retrieved_document_count"],
-                "max_score": raw_score,
+                "semantic_score": semantic_score,
+                "rerank_score": rerank_score,
             }
         )
 

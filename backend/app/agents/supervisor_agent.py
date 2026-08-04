@@ -3,6 +3,18 @@ from app.graph.state import GraphState
 
 
 class SupervisorAgent(BaseAgent):
+    """
+    Executes the workflow plan produced by the PlannerAgent.
+
+    The Supervisor does not make decisions itself.
+    It simply validates and applies the planner's execution plan.
+    """
+
+    VALID_ROUTES = {
+        "answer",
+        "retriever",
+        "tool",
+    }
 
     def __init__(self):
         super().__init__("SupervisorAgent")
@@ -12,44 +24,39 @@ class SupervisorAgent(BaseAgent):
         execution_plan = state.get("execution_plan", {})
 
         # ---------------------------------------------------------
-        # Planner decides the execution route
+        # Execute planner decision
         # ---------------------------------------------------------
 
-        route = execution_plan.get(
-            "route",
-            "retriever",
-        )
+        route = execution_plan.get("route", "retriever")
 
-        # Safety fallback
-        if route not in {
-            "answer",
-            "retriever",
-            "tool",
-        }:
+        if route not in self.VALID_ROUTES:
             route = "retriever"
 
         state["next_node"] = route
 
         # ---------------------------------------------------------
-        # Optional execution flags
+        # Execution Flags
         # ---------------------------------------------------------
 
-        state["needs_retrieval"] = (
-            route == "retriever"
-        )
+        state["needs_retrieval"] = route == "retriever"
 
         state["needs_verification"] = execution_plan.get(
             "verify",
             False,
         )
 
+        state["needs_reflection"] = execution_plan.get(
+            "reflect",
+            False,
+        )
+
         # ---------------------------------------------------------
-        # Logging / Monitoring
+        # Trace
         # ---------------------------------------------------------
 
         state["routing_reason"] = state.get(
             "planning_reason",
-            "",
+            "Planner decision executed.",
         )
 
         state.setdefault(

@@ -113,4 +113,5 @@ def query_conversation(
         db=db,
         conversation_id=conversation_id,
         question=request.query,
+        retrieval_strategy=request.retrieval_strategy
     )

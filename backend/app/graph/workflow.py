@@ -16,6 +16,13 @@ from app.agents.retry_agent import RetryAgent
 
 
 # =============================================================================
+# Constants
+# =============================================================================
+
+DEFAULT_MAX_RETRIES = 2
+
+
+# =============================================================================
 # Agent Instances
 # =============================================================================
 
@@ -88,7 +95,20 @@ def supervisor_router(state: GraphState):
     """
     Route according to the Planner/Supervisor decision.
     """
-    return state.get("next_node", "answer")
+
+    route = state.get(
+        "next_node",
+        "answer",
+    )
+
+    if route not in {
+        "answer",
+        "retriever",
+        "tool",
+    }:
+        route = "answer"
+
+    return route
 
 
 def reflection_router(state: GraphState):
@@ -115,7 +135,12 @@ def reflection_router(state: GraphState):
 
     max_retries = state.get(
         "max_retries",
-        2,
+        DEFAULT_MAX_RETRIES,
+    )
+
+    needs_retry = state.get(
+        "needs_retry",
+        False,
     )
 
     # ---------------------------------------------------------
@@ -123,14 +148,13 @@ def reflection_router(state: GraphState):
     # ---------------------------------------------------------
 
     if (
-        state.get("needs_retry", False)
+        needs_retry
         and retry_count < max_retries
     ):
         return "retry"
 
     # ---------------------------------------------------------
     # Otherwise continue to verification
-    # (reflection passed OR retries exhausted)
     # ---------------------------------------------------------
 
     return "verification"
@@ -142,10 +166,24 @@ def verification_router(state: GraphState):
     grounding failed.
     """
 
+    retry_required = state.get(
+        "retry_required",
+        False,
+    )
+
+    retry_count = state.get(
+        "retry_count",
+        0,
+    )
+
+    max_retries = state.get(
+        "max_retries",
+        DEFAULT_MAX_RETRIES,
+    )
+
     if (
-        state.get("retry_required", False)
-        and state.get("retry_count", 0)
-        < state.get("max_retries", 2)
+        retry_required
+        and retry_count < max_retries
     ):
         return "retry"
 
@@ -157,6 +195,9 @@ def verification_router(state: GraphState):
 # =============================================================================
 
 def build_workflow():
+    """
+    Build and compile the Agentic RAG workflow graph.
+    """
 
     workflow = StateGraph(GraphState)
 
@@ -194,7 +235,7 @@ def build_workflow():
         {
             "answer": "answer",
             "retriever": "query_rewriter",
-            "tool": "answer",  # ToolAgent (future)
+            "tool": "answer",  # TODO: Replace with ToolAgent in a future phase.
         },
     )
 
@@ -242,7 +283,7 @@ def build_workflow():
     workflow.add_edge("retry", "query_rewriter")
 
     # -------------------------------------------------------------------------
-    # Compile Graph
+    # Compile and freeze the workflow graph
     # -------------------------------------------------------------------------
 
     return workflow.compile()

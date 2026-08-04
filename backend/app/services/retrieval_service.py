@@ -31,15 +31,37 @@ def semantic_search(
     query: str,
     limit: int,
 ):
+    """
+    Vector similarity search using Qdrant.
+
+    The returned score is the semantic similarity score.
+    """
 
     vector = generate_embeddings([query])[0]
 
-    return client.query_points(
+    points = client.query_points(
         collection_name=COLLECTION_NAME,
         query=vector,
         limit=limit,
         with_payload=True,
     ).points
+
+    results = []
+
+    for point in points:
+
+        payload = dict(point.payload)
+
+        payload["semantic_score"] = float(point.score)
+
+        results.append(
+            SearchResult(
+                score=float(point.score),
+                payload=payload,
+            )
+        )
+
+    return results
 
 
 # ==========================================================
@@ -90,6 +112,9 @@ def keyword_search(
                         "chunk_id": chunk.id,
                         "document_id": chunk.document_id,
                         "content": chunk.content,
+
+                        # Preserve keyword confidence
+                        "keyword_score": 0.50,
                     },
                 )
             )
@@ -112,6 +137,13 @@ def merge_results(
     semantic_results,
     keyword_results,
 ):
+    """
+    Merge semantic and keyword results.
+
+    Semantic metadata is preserved.
+
+    Keyword metadata is merged into existing semantic hits.
+    """
 
     merged = OrderedDict()
 
@@ -120,11 +152,27 @@ def merge_results(
         chunk_id = chunk.payload["chunk_id"]
 
         if chunk_id not in merged:
+
             merged[chunk_id] = chunk
             continue
 
-        if chunk.score > merged[chunk_id].score:
-            merged[chunk_id] = chunk
+        existing = merged[chunk_id]
+
+        # Preserve semantic score
+        if "semantic_score" in chunk.payload:
+            existing.payload["semantic_score"] = chunk.payload[
+                "semantic_score"
+            ]
+
+        # Preserve keyword score
+        if "keyword_score" in chunk.payload:
+            existing.payload["keyword_score"] = chunk.payload[
+                "keyword_score"
+            ]
+
+        # Keep highest merge score
+        if chunk.score > existing.score:
+            existing.score = chunk.score
 
     return sorted(
         merged.values(),
@@ -142,6 +190,9 @@ def search_chunks(
     limit: int = 3,
     strategy: str = "semantic",
 ):
+    """
+    Unified retrieval entrypoint.
+    """
 
     query = query.strip()
 

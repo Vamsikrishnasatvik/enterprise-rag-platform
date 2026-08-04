@@ -27,6 +27,8 @@ def rerank_results(
     scores = model.predict(pairs)
 
     for chunk, score in zip(chunks, scores):
+        chunk.payload["rerank_score"] = float(score)
+        
         chunk.score = float(score)
 
     return sorted(
