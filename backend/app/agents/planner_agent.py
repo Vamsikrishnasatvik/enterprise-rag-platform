@@ -8,7 +8,10 @@ class PlannerAgent(BaseAgent):
     def __init__(self):
         super().__init__("PlannerAgent")
 
-    def run(self, state: GraphState) -> GraphState:
+    def run(
+        self,
+        state: GraphState,
+    ) -> GraphState:
 
         plan = create_execution_plan(
             question=state["question"],
@@ -19,7 +22,7 @@ class PlannerAgent(BaseAgent):
         )
 
         # ---------------------------------------------------------
-        # Store Planner Output
+        # Query Type
         # ---------------------------------------------------------
 
         state["query_type"] = plan.get(
@@ -27,16 +30,68 @@ class PlannerAgent(BaseAgent):
             "knowledge",
         )
 
+        # ---------------------------------------------------------
+        # Execution Plan
+        # ---------------------------------------------------------
+
         execution_plan = plan.get(
             "execution_plan",
-            {
-                "route": "retriever",
-                "reflect": True,
-                "verify": False,
-            },
+            [
+                {
+                    "tool": "rag",
+                    "inputs": {},
+                }
+            ],
         )
 
+        # ---------------------------------------------------------
+        # Backward Compatibility
+        # ---------------------------------------------------------
+
+        if isinstance(execution_plan, dict):
+            execution_plan = [
+                {
+                    "tool": "rag",
+                    "inputs": {},
+                }
+            ]
+
+        # ---------------------------------------------------------
+        # Validate Execution Plan
+        # ---------------------------------------------------------
+
+        normalized_plan = []
+
+        for step in execution_plan:
+
+            tool = step.get(
+                "tool",
+                "rag",
+            )
+
+            inputs = step.get(
+                "inputs",
+                {},
+            )
+
+            normalized_plan.append(
+                {
+                    "tool": tool,
+                    "inputs": inputs,
+                }
+            )
+
+        execution_plan = normalized_plan
+
         state["execution_plan"] = execution_plan
+
+        # Backward compatibility for components
+        # that still read tool_name.
+        state["tool_name"] = execution_plan[0]["tool"]
+
+        # ---------------------------------------------------------
+        # Planning Reason
+        # ---------------------------------------------------------
 
         state["planning_reason"] = plan.get(
             "reason",
@@ -54,10 +109,12 @@ class PlannerAgent(BaseAgent):
             {
                 "agent": "PlannerAgent",
                 "query_type": state["query_type"],
-                "route": execution_plan.get(
-                    "route",
-                    "retriever",
-                ),
+                "steps": len(execution_plan),
+                "tools": [
+                    step["tool"]
+                    for step in execution_plan
+                ],
+                "reason": state["planning_reason"],
             }
         )
 

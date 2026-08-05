@@ -109,3 +109,9 @@ class GraphState(TypedDict, total=False):
     selected_tool: str
     tool_result: Dict[str, Any]
     tool_reason: str
+
+    execution_plan: list
+    tool_name: str
+    tool_inputs: dict
+    tool_output: dict
+    tool_outputs: list

@@ -5,6 +5,7 @@ from app.graph.state import GraphState
 from app.agents.memory_agent import MemoryAgent
 from app.agents.planner_agent import PlannerAgent
 from app.agents.supervisor_agent import SupervisorAgent
+from app.agents.tool_executor_agent import ToolExecutorAgent
 from app.agents.query_rewriter_agent import QueryRewriterAgent
 from app.agents.retriever_agent import RetrieverAgent
 from app.agents.compression_agent import CompressionAgent
@@ -29,6 +30,7 @@ DEFAULT_MAX_RETRIES = 2
 memory = MemoryAgent()
 planner = PlannerAgent()
 supervisor = SupervisorAgent()
+tool_executor = ToolExecutorAgent()
 query_rewriter = QueryRewriterAgent()
 retriever = RetrieverAgent()
 compression = CompressionAgent()
@@ -53,6 +55,10 @@ def planner_node(state: GraphState):
 
 def supervisor_node(state: GraphState):
     return supervisor(state)
+
+
+def tool_executor_node(state: GraphState):
+    return tool_executor(state)
 
 
 def query_rewriter_node(state: GraphState):
@@ -91,42 +97,10 @@ def retry_node(state: GraphState):
 # Routers
 # =============================================================================
 
-def supervisor_router(state: GraphState):
-    """
-    Route according to the Planner/Supervisor decision.
-    """
-
-    route = state.get(
-        "next_node",
-        "answer",
-    )
-
-    if route not in {
-        "answer",
-        "retriever",
-        "tool",
-    }:
-        route = "answer"
-
-    return route
-
-
 def reflection_router(state: GraphState):
     """
     Reflection routing.
-
-    Flow:
-    - Non-RAG -> END
-    - Retry requested -> Retry (if retries remain)
-    - Otherwise -> Verification
     """
-
-    # ---------------------------------------------------------
-    # Skip reflection for non-RAG queries
-    # ---------------------------------------------------------
-
-    if state.get("next_node") != "retriever":
-        return "end"
 
     retry_count = state.get(
         "retry_count",
@@ -143,27 +117,18 @@ def reflection_router(state: GraphState):
         False,
     )
 
-    # ---------------------------------------------------------
-    # Retry if retries remain
-    # ---------------------------------------------------------
-
     if (
         needs_retry
         and retry_count < max_retries
     ):
         return "retry"
 
-    # ---------------------------------------------------------
-    # Otherwise continue to verification
-    # ---------------------------------------------------------
-
     return "verification"
 
 
 def verification_router(state: GraphState):
     """
-    Verification may request another retrieval if
-    grounding failed.
+    Verification routing.
     """
 
     retry_required = state.get(
@@ -195,63 +160,129 @@ def verification_router(state: GraphState):
 # =============================================================================
 
 def build_workflow():
-    """
-    Build and compile the Agentic RAG workflow graph.
-    """
 
     workflow = StateGraph(GraphState)
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
     # Register Nodes
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
 
-    workflow.add_node("memory", memory_node)
-    workflow.add_node("planner", planner_node)
-    workflow.add_node("supervisor", supervisor_node)
-    workflow.add_node("query_rewriter", query_rewriter_node)
-    workflow.add_node("retriever", retriever_node)
-    workflow.add_node("compression", compression_node)
-    workflow.add_node("answer", answer_node)
-    workflow.add_node("citation", citation_node)
-    workflow.add_node("reflection", reflection_node)
-    workflow.add_node("verification", verification_node)
-    workflow.add_node("retry", retry_node)
-
-    # -------------------------------------------------------------------------
-    # Entry
-    # -------------------------------------------------------------------------
-
-    workflow.add_edge(START, "memory")
-    workflow.add_edge("memory", "planner")
-    workflow.add_edge("planner", "supervisor")
-
-    # -------------------------------------------------------------------------
-    # Supervisor Routing
-    # -------------------------------------------------------------------------
-
-    workflow.add_conditional_edges(
-        "supervisor",
-        supervisor_router,
-        {
-            "answer": "answer",
-            "retriever": "query_rewriter",
-            "tool": "answer",  # TODO: Replace with ToolAgent in a future phase.
-        },
+    workflow.add_node(
+        "memory",
+        memory_node,
     )
 
-    # -------------------------------------------------------------------------
+    workflow.add_node(
+        "planner",
+        planner_node,
+    )
+
+    workflow.add_node(
+        "supervisor",
+        supervisor_node,
+    )
+
+    workflow.add_node(
+        "tool_executor",
+        tool_executor_node,
+    )
+
+    workflow.add_node(
+        "query_rewriter",
+        query_rewriter_node,
+    )
+
+    workflow.add_node(
+        "retriever",
+        retriever_node,
+    )
+
+    workflow.add_node(
+        "compression",
+        compression_node,
+    )
+
+    workflow.add_node(
+        "answer",
+        answer_node,
+    )
+
+    workflow.add_node(
+        "citation",
+        citation_node,
+    )
+
+    workflow.add_node(
+        "reflection",
+        reflection_node,
+    )
+
+    workflow.add_node(
+        "verification",
+        verification_node,
+    )
+
+    workflow.add_node(
+        "retry",
+        retry_node,
+    )
+
+    # ---------------------------------------------------------------------
+    # Entry
+    # ---------------------------------------------------------------------
+
+    workflow.add_edge(
+        START,
+        "memory",
+    )
+
+    workflow.add_edge(
+        "memory",
+        "planner",
+    )
+
+    workflow.add_edge(
+        "planner",
+        "supervisor",
+    )
+
+    workflow.add_edge(
+        "supervisor",
+        "query_rewriter",
+    )
+
+    workflow.add_edge(
+        "query_rewriter",
+        "tool_executor",
+    )
+
+    workflow.add_edge(
+        "tool_executor",
+        "compression",
+    )
+
+    # ---------------------------------------------------------------------
     # RAG Pipeline
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
 
-    workflow.add_edge("query_rewriter", "retriever")
-    workflow.add_edge("retriever", "compression")
-    workflow.add_edge("compression", "answer")
-    workflow.add_edge("answer", "citation")
-    workflow.add_edge("citation", "reflection")
+    workflow.add_edge(
+        "compression",
+        "answer",
+    )
 
-    # -------------------------------------------------------------------------
-    # Reflection Routing
-    # -------------------------------------------------------------------------
+    workflow.add_edge(
+        "answer",
+        "citation",
+    )
+
+    workflow.add_edge(
+        "citation",
+        "reflection",
+    )
+
+    # ---------------------------------------------------------------------
+    # Reflection
+    # ---------------------------------------------------------------------
 
     workflow.add_conditional_edges(
         "reflection",
@@ -259,13 +290,12 @@ def build_workflow():
         {
             "retry": "retry",
             "verification": "verification",
-            "end": END,
         },
     )
 
-    # -------------------------------------------------------------------------
-    # Verification Routing
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
+    # Verification
+    # ---------------------------------------------------------------------
 
     workflow.add_conditional_edges(
         "verification",
@@ -276,15 +306,14 @@ def build_workflow():
         },
     )
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
     # Retry Loop
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
 
-    workflow.add_edge("retry", "query_rewriter")
-
-    # -------------------------------------------------------------------------
-    # Compile and freeze the workflow graph
-    # -------------------------------------------------------------------------
+    workflow.add_edge(
+        "retry",
+        "query_rewriter",
+    )
 
     return workflow.compile()
 

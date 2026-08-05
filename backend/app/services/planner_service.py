@@ -2,20 +2,9 @@ import json
 import logging
 
 from app.prompts.planner_prompt import PLANNER_PROMPT
-from app.services.llm_service import call_llm
+from app.services.llm_service import invoke_json_llm
 
 logger = logging.getLogger(__name__)
-
-
-DEFAULT_PLAN = {
-    "query_type": "knowledge",
-    "execution_plan": {
-        "route": "retriever",
-        "reflect": True,
-        "verify": False,
-    },
-    "reason": "Planner failed. Using fallback execution plan.",
-}
 
 
 def create_execution_plan(
@@ -23,7 +12,7 @@ def create_execution_plan(
     memory_context: str = "",
 ) -> dict:
     """
-    Generate an execution plan for the Agentic RAG workflow.
+    Generate an execution plan for the current user question.
     """
 
     prompt = PLANNER_PROMPT.format(
@@ -31,87 +20,77 @@ def create_execution_plan(
         memory_context=memory_context,
     )
 
-    response = call_llm(prompt).strip()
+    try:
 
-    logger.info("Planner Raw Response:\n%s", response)
+        plan = invoke_json_llm(prompt)
 
-    # ---------------------------------------------------------
-    # Remove Markdown code fences
-    # ---------------------------------------------------------
-
-    if response.startswith("```"):
-        response = (
-            response.replace("```json", "")
-            .replace("```", "")
-            .strip()
+        query_type = plan.get(
+            "query_type",
+            "knowledge",
         )
 
-    # ---------------------------------------------------------
-    # Parse JSON
-    # ---------------------------------------------------------
+        reason = plan.get(
+            "reason",
+            "",
+        )
 
-    try:
-        plan = json.loads(response)
+        execution_plan = plan.get(
+            "execution_plan",
+            [],
+        )
+
+        # -----------------------------------------------------
+        # Validate execution plan
+        # -----------------------------------------------------
+
+        if not isinstance(
+            execution_plan,
+            list,
+        ) or len(execution_plan) == 0:
+
+            execution_plan = [
+                {
+                    "tool": "rag",
+                    "inputs": {},
+                }
+            ]
+
+        normalized_plan = []
+
+        for step in execution_plan:
+
+            normalized_plan.append(
+                {
+                    "tool": step.get(
+                        "tool",
+                        "rag",
+                    ),
+                    "inputs": step.get(
+                        "inputs",
+                        {},
+                    ),
+                }
+            )
+
+        return {
+            "query_type": query_type,
+            "execution_plan": normalized_plan,
+            "reason": reason,
+        }
 
     except Exception:
-        logger.exception("Planner JSON parsing failed.")
-        return DEFAULT_PLAN.copy()
 
-    # ---------------------------------------------------------
-    # Validate Top-Level Fields
-    # ---------------------------------------------------------
-
-    plan.setdefault(
-        "query_type",
-        DEFAULT_PLAN["query_type"],
-    )
-
-    plan.setdefault(
-        "execution_plan",
-        DEFAULT_PLAN["execution_plan"].copy(),
-    )
-
-    plan.setdefault(
-        "reason",
-        DEFAULT_PLAN["reason"],
-    )
-
-    # ---------------------------------------------------------
-    # Validate Execution Plan
-    # ---------------------------------------------------------
-
-    execution_plan = plan["execution_plan"]
-
-    execution_plan.setdefault("route", "retriever")
-    execution_plan.setdefault("reflect", True)
-    execution_plan.setdefault("verify", False)
-
-    # ---------------------------------------------------------
-    # Normalize Route
-    # ---------------------------------------------------------
-
-    valid_routes = {
-        "answer",
-        "retriever",
-    }
-
-    if execution_plan["route"] not in valid_routes:
-        logger.warning(
-            "Invalid planner route '%s'. Falling back to 'retriever'.",
-            execution_plan["route"],
+        logger.exception(
+            "Planner failed. Falling back to RAG."
         )
-        execution_plan["route"] = "retriever"
 
-    # ---------------------------------------------------------
-    # Logging
-    # ---------------------------------------------------------
-
-    logger.info(
-        "Planner Decision | type=%s | route=%s | reflect=%s | verify=%s",
-        plan["query_type"],
-        execution_plan["route"],
-        execution_plan["reflect"],
-        execution_plan["verify"],
-    )
-
-    return plan
+        return {
+            "query_type": "knowledge",
+            "execution_plan": [
+                {
+                    "tool": "rag",
+                    "inputs": {},
+                }
+            ],
+            "reason": "Fallback execution plan.",
+        }

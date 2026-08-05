@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 RETRIEVAL_THRESHOLDS = {
     "semantic": 0.55,
     "keyword": 0.30,
-    "hybrid": 0.55,  # after hybrid normalization
+    "hybrid": 0.55,
 }
 
 DEFAULT_QUERY_TYPE = "knowledge"
@@ -55,16 +55,17 @@ class AnswerAgent(BaseAgent):
             RETRIEVAL_THRESHOLDS["semantic"],
         )
 
-        next_node = state.get("next_node")
-
         retrieved_documents = state.get(
             "retrieved_document_count",
             0,
         )
 
-        # Safety fallback
+        # ---------------------------------------------------------
+        # Select Generator
+        # ---------------------------------------------------------
 
         try:
+
             generator = AnswerFactory.get(query_type)
 
         except Exception:
@@ -85,7 +86,6 @@ class AnswerAgent(BaseAgent):
         logger.info("=" * 70)
         logger.info("AnswerAgent")
         logger.info("Query Type      : %s", query_type)
-        logger.info("Next Node       : %s", next_node)
         logger.info("Strategy        : %s", retrieval_strategy)
         logger.info("Retrieval Score : %.4f", retrieval_score)
         logger.info("Threshold       : %.4f", threshold)
@@ -104,17 +104,19 @@ class AnswerAgent(BaseAgent):
         # ---------------------------------------------------------
 
         if (
-            next_node == "retriever"
-            and retrieval_score < threshold
-            and retrieved_documents == 0
+            retrieved_documents == 0
+            or (
+                retrieval_score < threshold
+                and not state.get("retrieved_chunks")
+            )
         ):
 
             logger.warning(
-                "Retrieval score %.4f is below threshold %.4f "
-                "and no documents were retrieved. "
-                "Returning fallback response.",
+                "Insufficient retrieval results. "
+                "score=%.4f threshold=%.4f docs=%d",
                 retrieval_score,
                 threshold,
+                retrieved_documents,
             )
 
             state["answer"] = self._fallback_answer()

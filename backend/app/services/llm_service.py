@@ -1,3 +1,4 @@
+import json
 import logging
 
 import requests
@@ -7,6 +8,7 @@ from app.prompts.answer_prompt import ANSWER_PROMPT
 from app.prompts.general_answer_prompt import GENERAL_ANSWER_PROMPT
 
 logger = logging.getLogger(__name__)
+
 
 # =============================================================================
 # Generic LLM Client
@@ -23,29 +25,53 @@ def call_llm(prompt: str) -> str:
         len(prompt),
     )
 
+    response = requests.post(
+        f"{settings.OLLAMA_BASE_URL}/api/generate",
+        json={
+            "model": settings.OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+        },
+        timeout=120,
+    )
+
+    response.raise_for_status()
+
+    return response.json().get(
+        "response",
+        "",
+    )
+
+
+# =============================================================================
+# JSON LLM
+# =============================================================================
+
+def invoke_json_llm(prompt: str) -> dict:
+    """
+    Invoke the LLM expecting a JSON response.
+
+    Used by:
+        - Planner
+        - Reflection
+        - Verification
+        - Future Tool Planner
+    """
+
+    response = call_llm(prompt)
+
     try:
-        response = requests.post(
-            f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-            },
-            timeout=120,
+        return json.loads(response)
+
+    except json.JSONDecodeError:
+
+        logger.exception(
+            "Failed to parse JSON response from LLM."
         )
 
-        response.raise_for_status()
-
-        logger.info("LLM completed successfully.")
-
-        return response.json().get(
-            "response",
-            "No response generated.",
+        raise ValueError(
+            "LLM returned invalid JSON."
         )
-
-    except requests.exceptions.RequestException:
-        logger.exception("LLM request failed.")
-        raise
 
 
 # =============================================================================
@@ -57,21 +83,11 @@ def generate_answer(
     context: str,
     memory_context: str = "",
 ) -> str:
-    """
-    Generate an answer using enterprise knowledge retrieved
-    from the RAG pipeline.
-    """
 
     prompt = ANSWER_PROMPT.format(
         memory_context=memory_context,
         context=context,
         question=question,
-    )
-
-    logger.debug(
-        "Generating RAG answer | context_length=%d | memory_length=%d",
-        len(context),
-        len(memory_context),
     )
 
     return call_llm(prompt)
@@ -85,19 +101,10 @@ def generate_general_answer(
     question: str,
     memory_context: str = "",
 ) -> str:
-    """
-    Generate a conversational answer that does not require
-    enterprise document retrieval.
-    """
 
     prompt = GENERAL_ANSWER_PROMPT.format(
         memory_context=memory_context,
         question=question,
-    )
-
-    logger.debug(
-        "Generating general answer | memory_length=%d",
-        len(memory_context),
     )
 
     return call_llm(prompt)
