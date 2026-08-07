@@ -2,23 +2,34 @@ import logging
 
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
-
 from app.services.compression_service import compress_context
 
 logger = logging.getLogger(__name__)
 
-# Compress anything larger than roughly one page of text
+# Compress anything larger than roughly one page of text.
 COMPRESSION_THRESHOLD = 1000
 
 
 class CompressionAgent(BaseAgent):
+    """
+    Compresses large retrieval contexts before answer generation.
+
+    Small contexts are passed through unchanged to avoid unnecessary
+    LLM calls and preserve maximum context.
+    """
 
     def __init__(self):
         super().__init__("CompressionAgent")
 
-    def run(self, state: GraphState) -> GraphState:
+    def run(
+        self,
+        state: GraphState,
+    ) -> GraphState:
 
-        chunks = state.get("retrieved_chunks", [])
+        chunks = state.get(
+            "retrieved_chunks",
+            [],
+        )
 
         # ---------------------------------------------------------
         # Nothing Retrieved
@@ -30,14 +41,18 @@ class CompressionAgent(BaseAgent):
                 "Compression skipped | no retrieved chunks"
             )
 
-            state["retrieval_context"] = ""
+            state.update(
+                {
+                    "retrieval_context": "",
+                }
+            )
 
             state.setdefault(
                 "execution_trace",
                 [],
             ).append(
                 {
-                    "agent": "CompressionAgent",
+                    "agent": self.name,
                     "compressed": False,
                     "reason": "no_chunks",
                 }
@@ -50,37 +65,46 @@ class CompressionAgent(BaseAgent):
         # ---------------------------------------------------------
 
         context = "\n\n".join(
-            chunk.payload.get("content", "")
+            chunk.payload.get(
+                "content",
+                "",
+            ).strip()
             for chunk in chunks
         )
+
+        context_length = len(context)
 
         logger.info(
             "Compression Check | chunks=%d | context_length=%d",
             len(chunks),
-            len(context),
+            context_length,
         )
 
         # ---------------------------------------------------------
-        # Skip Compression for Small Context
+        # Skip Compression
         # ---------------------------------------------------------
 
-        if len(context) < COMPRESSION_THRESHOLD:
+        if context_length < COMPRESSION_THRESHOLD:
 
             logger.info(
                 "Skipping compression | context already small"
             )
 
-            state["retrieval_context"] = context
+            state.update(
+                {
+                    "retrieval_context": context,
+                }
+            )
 
             state.setdefault(
                 "execution_trace",
                 [],
             ).append(
                 {
-                    "agent": "CompressionAgent",
+                    "agent": self.name,
                     "compressed": False,
                     "reason": "small_context",
-                    "context_length": len(context),
+                    "context_length": context_length,
                 }
             )
 
@@ -95,12 +119,15 @@ class CompressionAgent(BaseAgent):
         )
 
         compressed = compress_context(
-            question=state["question"],
+            question=state.get(
+                "question",
+                "",
+            ),
             context=context,
         )
 
         # ---------------------------------------------------------
-        # Compression Fallback
+        # Fallback
         # ---------------------------------------------------------
 
         if not compressed or not compressed.strip():
@@ -112,27 +139,35 @@ class CompressionAgent(BaseAgent):
 
             compressed = context
 
-        logger.info(
-            "Compression completed | original=%d | compressed=%d",
-            len(context),
-            len(compressed),
+        compressed_length = len(compressed)
+
+        compression_ratio = round(
+            compressed_length / max(context_length, 1),
+            2,
         )
 
-        state["retrieval_context"] = compressed
+        logger.info(
+            "Compression completed | original=%d | compressed=%d",
+            context_length,
+            compressed_length,
+        )
+
+        state.update(
+            {
+                "retrieval_context": compressed,
+            }
+        )
 
         state.setdefault(
             "execution_trace",
             [],
         ).append(
             {
-                "agent": "CompressionAgent",
+                "agent": self.name,
                 "compressed": True,
-                "original_length": len(context),
-                "compressed_length": len(compressed),
-                "compression_ratio": round(
-                    len(compressed) / max(len(context), 1),
-                    2,
-                ),
+                "original_length": context_length,
+                "compressed_length": compressed_length,
+                "compression_ratio": compression_ratio,
             }
         )
 

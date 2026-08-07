@@ -6,6 +6,9 @@ from app.services.llm_service import call_llm
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Constants
+# =============================================================================
 
 DEFAULT_VERIFICATION = {
     "supported": False,
@@ -15,19 +18,22 @@ DEFAULT_VERIFICATION = {
     "reason": "Verification failed.",
 }
 
+INVALID_LIST_VALUES = {
+    "",
+    "none",
+    "n/a",
+}
 
-def to_bool(value):
-    if isinstance(value, bool):
-        return value
+INVALID_HALLUCINATION_VALUES = {
+    "",
+    "none",
+    "n/a",
+    "no hallucination detected",
+}
 
-    if isinstance(value, str):
-        return value.strip().lower() in {
-            "true",
-            "yes",
-            "1",
-        }
-
-    return bool(value)
+# =============================================================================
+# Verification Service
+# =============================================================================
 
 
 def verify_answer(
@@ -36,8 +42,8 @@ def verify_answer(
     context: str,
 ) -> dict:
     """
-    Verify whether the generated answer is fully supported
-    by the retrieved enterprise context.
+    Verifies whether a generated answer is fully supported by
+    the retrieved enterprise context.
     """
 
     prompt = VERIFICATION_PROMPT.format(
@@ -58,20 +64,7 @@ def verify_answer(
         response,
     )
 
-    # ---------------------------------------------------------
-    # Remove Markdown
-    # ---------------------------------------------------------
-
-    if response.startswith("```"):
-        response = (
-            response.replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
-
-    # ---------------------------------------------------------
-    # Parse JSON
-    # ---------------------------------------------------------
+    response = _strip_code_fences(response)
 
     try:
         verification = json.loads(response)
@@ -84,104 +77,9 @@ def verify_answer(
 
         return DEFAULT_VERIFICATION.copy()
 
-    # ---------------------------------------------------------
-    # Validate Required Fields
-    # ---------------------------------------------------------
-
-    verification.setdefault("supported", False)
-    verification.setdefault("confidence", 0.0)
-    verification.setdefault("missing_information", [])
-    verification.setdefault("hallucinations", [])
-    verification.setdefault("reason", "")
-
-    # ---------------------------------------------------------
-    # Normalize Confidence
-    # ---------------------------------------------------------
-
-    try:
-        confidence = float(
-            verification["confidence"]
-        )
-    except (ValueError, TypeError):
-        confidence = 0.0
-
-    verification["confidence"] = max(
-        0.0,
-        min(confidence, 1.0),
+    verification = _normalize_verification(
+        verification,
     )
-
-    # ---------------------------------------------------------
-    # Normalize Boolean
-    # ---------------------------------------------------------
-
-    verification["supported"] = to_bool(
-        verification["supported"]
-    )
-
-    # ---------------------------------------------------------
-    # Normalize Hallucinations
-    # ---------------------------------------------------------
-
-    if not isinstance(
-        verification["hallucinations"],
-        list,
-    ):
-        verification["hallucinations"] = [
-            str(
-                verification["hallucinations"]
-            )
-        ]
-
-    # Remove bogus "No hallucination..." responses
-
-    verification["hallucinations"] = [
-        item
-        for item in verification["hallucinations"]
-        if str(item).strip().lower()
-        not in {
-            "",
-            "none",
-            "n/a",
-            "no hallucination detected",
-        }
-    ]
-
-    # ---------------------------------------------------------
-    # Normalize Missing Information
-    # ---------------------------------------------------------
-
-    if not isinstance(
-        verification["missing_information"],
-        list,
-    ):
-        verification["missing_information"] = [
-            str(
-                verification["missing_information"]
-            )
-        ]
-
-    verification["missing_information"] = [
-        item
-        for item in verification["missing_information"]
-        if str(item).strip().lower()
-        not in {
-            "",
-            "none",
-            "n/a",
-        }
-    ]
-
-    # ---------------------------------------------------------
-    # Normalize Reason
-    # ---------------------------------------------------------
-
-    verification["reason"] = str(
-        verification["reason"]
-    )
-
-    # ---------------------------------------------------------
-    # Logging
-    # ---------------------------------------------------------
 
     logger.info(
         (
@@ -198,3 +96,105 @@ def verify_answer(
     )
 
     return verification
+
+
+# =============================================================================
+# Helpers
+# =============================================================================
+
+
+def _strip_code_fences(text: str) -> str:
+    """
+    Removes Markdown code fences from LLM responses.
+    """
+
+    if text.startswith("```"):
+        return (
+            text.replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
+
+    return text
+
+
+def _normalize_verification(
+    verification: dict,
+) -> dict:
+    """
+    Normalizes the verification response into the expected schema.
+    """
+
+    verification.setdefault("supported", False)
+    verification.setdefault("confidence", 0.0)
+    verification.setdefault("missing_information", [])
+    verification.setdefault("hallucinations", [])
+    verification.setdefault("reason", "")
+
+    try:
+        confidence = float(
+            verification["confidence"]
+        )
+    except (TypeError, ValueError):
+        confidence = 0.0
+
+    verification["confidence"] = max(
+        0.0,
+        min(confidence, 1.0),
+    )
+
+    verification["supported"] = _to_bool(
+        verification["supported"]
+    )
+
+    verification["hallucinations"] = _normalize_list(
+        verification["hallucinations"],
+        INVALID_HALLUCINATION_VALUES,
+    )
+
+    verification["missing_information"] = _normalize_list(
+        verification["missing_information"],
+        INVALID_LIST_VALUES,
+    )
+
+    verification["reason"] = str(
+        verification["reason"]
+    )
+
+    return verification
+
+
+def _normalize_list(
+    value,
+    invalid_values: set[str],
+) -> list[str]:
+    """
+    Normalizes list-like values returned by the LLM.
+    """
+
+    if not isinstance(value, list):
+        value = [str(value)]
+
+    return [
+        str(item)
+        for item in value
+        if str(item).strip().lower() not in invalid_values
+    ]
+
+
+def _to_bool(value) -> bool:
+    """
+    Converts common LLM boolean representations into Python booleans.
+    """
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        return value.strip().lower() in {
+            "true",
+            "yes",
+            "1",
+        }
+
+    return bool(value)

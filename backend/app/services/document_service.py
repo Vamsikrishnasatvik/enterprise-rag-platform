@@ -1,6 +1,14 @@
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Document CRUD
+# =============================================================================
 
 
 def create_document(
@@ -10,7 +18,14 @@ def create_document(
     storage_path: str,
     file_type: str,
     file_size: int,
-):
+) -> Document:
+    """
+    Creates a new document record.
+
+    Newly uploaded documents are initialized with the
+    'UPLOADED' processing status.
+    """
+
     document = Document(
         tenant_id=tenant_id,
         filename=filename,
@@ -23,5 +38,12 @@ def create_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+
+    logger.info(
+        "Created document | id=%d | tenant=%d | filename=%s",
+        document.id,
+        tenant_id,
+        filename,
+    )
 
     return document

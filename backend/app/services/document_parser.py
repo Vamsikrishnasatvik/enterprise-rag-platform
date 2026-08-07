@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import fitz
@@ -5,35 +6,61 @@ from docx import Document as DocxDocument
 
 from app.schemas.parser import ParsedDocument
 
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Constants
+# =============================================================================
+
+PDF_CONTENT_TYPE = "application/pdf"
+
+DOCX_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
+
+TEXT_EXTENSIONS = {
+    ".txt",
+    ".csv",
+}
+
+# =============================================================================
+# Public Parser
+# =============================================================================
+
 
 def parse_document(
     file_path: str,
     file_type: str,
 ) -> ParsedDocument:
     """
-    Dispatch parser based on content type or extension.
+    Parses a document by dispatching to the appropriate parser
+    based on MIME type or file extension.
     """
 
     file_type = (file_type or "").lower()
     suffix = Path(file_path).suffix.lower()
 
+    logger.info(
+        "Parsing document | file=%s | type=%s",
+        file_path,
+        file_type,
+    )
+
     if (
-        file_type == "application/pdf"
+        file_type == PDF_CONTENT_TYPE
         or suffix == ".pdf"
     ):
         return parse_pdf(file_path)
 
     if (
-        file_type
-        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        file_type == DOCX_CONTENT_TYPE
         or suffix == ".docx"
     ):
         return parse_docx(file_path)
 
     if (
         file_type.startswith("text/")
-        or suffix == ".txt"
-        or suffix == ".csv"
+        or suffix in TEXT_EXTENSIONS
     ):
         return parse_txt(file_path)
 
@@ -42,74 +69,90 @@ def parse_document(
     )
 
 
+# =============================================================================
+# PDF Parser
+# =============================================================================
+
+
 def parse_pdf(
     file_path: str,
 ) -> ParsedDocument:
     """
-    Parse PDF using PyMuPDF.
+    Parses a PDF document using PyMuPDF.
     """
 
-    document = fitz.open(file_path)
+    pages: list[str] = []
 
-    pages = []
-    full_text = []
+    with fitz.open(file_path) as document:
 
-    for page in document:
-        text = page.get_text("text")
-        pages.append(text)
-        full_text.append(text)
+        for page in document:
+            pages.append(
+                page.get_text("text")
+            )
 
-    text = "\n".join(full_text)
+    text = "\n".join(pages)
 
-    metadata = {
-        "filename": Path(file_path).name,
-        "content_type": "application/pdf",
-        "pages": pages,
-    }
+    logger.info(
+        "Parsed PDF | pages=%d",
+        len(pages),
+    )
 
     return ParsedDocument(
         text=text,
         page_count=len(pages),
-        metadata=metadata,
+        metadata={
+            "filename": Path(file_path).name,
+            "content_type": PDF_CONTENT_TYPE,
+            "pages": pages,
+        },
     )
+
+
+# =============================================================================
+# DOCX Parser
+# =============================================================================
 
 
 def parse_docx(
     file_path: str,
 ) -> ParsedDocument:
     """
-    Parse DOCX.
+    Parses a Microsoft Word (.docx) document.
     """
 
     document = DocxDocument(file_path)
 
     paragraphs = [
-        p.text
-        for p in document.paragraphs
-        if p.text.strip()
+        paragraph.text
+        for paragraph in document.paragraphs
+        if paragraph.text.strip()
     ]
 
-    text = "\n".join(paragraphs)
-
-    metadata = {
-        "filename": Path(file_path).name,
-        "content_type": (
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        ),
-    }
+    logger.info(
+        "Parsed DOCX | paragraphs=%d",
+        len(paragraphs),
+    )
 
     return ParsedDocument(
-        text=text,
+        text="\n".join(paragraphs),
         page_count=1,
-        metadata=metadata,
+        metadata={
+            "filename": Path(file_path).name,
+            "content_type": DOCX_CONTENT_TYPE,
+        },
     )
+
+
+# =============================================================================
+# Text Parser
+# =============================================================================
 
 
 def parse_txt(
     file_path: str,
 ) -> ParsedDocument:
     """
-    Parse TXT.
+    Parses plain text documents.
     """
 
     with open(
@@ -117,16 +160,20 @@ def parse_txt(
         "r",
         encoding="utf-8",
         errors="ignore",
-    ) as f:
-        text = f.read()
+    ) as file:
 
-    metadata = {
-        "filename": Path(file_path).name,
-        "content_type": "text/plain",
-    }
+        text = file.read()
+
+    logger.info(
+        "Parsed text document | characters=%d",
+        len(text),
+    )
 
     return ParsedDocument(
         text=text,
         page_count=1,
-        metadata=metadata,
+        metadata={
+            "filename": Path(file_path).name,
+            "content_type": "text/plain",
+        },
     )

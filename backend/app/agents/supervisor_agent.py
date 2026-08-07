@@ -4,19 +4,19 @@ from app.graph.state import GraphState
 
 class SupervisorAgent(BaseAgent):
     """
-    Validates the execution plan produced by the PlannerAgent.
+    Validates and normalizes the execution plan produced by the PlannerAgent.
 
-    The Supervisor no longer performs routing.
-    It simply ensures that a valid execution plan exists and
-    records metadata for downstream agents.
+    The Supervisor no longer performs routing. Its responsibility is to
+    ensure a valid execution plan exists and expose metadata required by
+    downstream agents.
     """
 
-    DEFAULT_PLAN = [
+    DEFAULT_PLAN = (
         {
             "tool": "rag",
             "inputs": {},
-        }
-    ]
+        },
+    )
 
     def __init__(self):
         super().__init__("SupervisorAgent")
@@ -28,18 +28,17 @@ class SupervisorAgent(BaseAgent):
 
         execution_plan = state.get(
             "execution_plan",
-            self.DEFAULT_PLAN,
+            [dict(step) for step in self.DEFAULT_PLAN],
         )
-
-        # ---------------------------------------------------------
-        # Validate Execution Plan
-        # ---------------------------------------------------------
 
         if (
             not isinstance(execution_plan, list)
-            or len(execution_plan) == 0
+            or not execution_plan
         ):
-            execution_plan = self.DEFAULT_PLAN.copy()
+            execution_plan = [
+                dict(step)
+                for step in self.DEFAULT_PLAN
+            ]
 
         normalized_plan = []
 
@@ -50,10 +49,12 @@ class SupervisorAgent(BaseAgent):
 
             normalized_plan.append(
                 {
-                    "tool": step.get(
-                        "tool",
-                        "rag",
-                    ),
+                    "tool": str(
+                        step.get(
+                            "tool",
+                            "rag",
+                        )
+                    ).strip().lower(),
                     "inputs": step.get(
                         "inputs",
                         {},
@@ -62,31 +63,28 @@ class SupervisorAgent(BaseAgent):
             )
 
         if not normalized_plan:
-            normalized_plan = self.DEFAULT_PLAN.copy()
+            normalized_plan = [
+                dict(step)
+                for step in self.DEFAULT_PLAN
+            ]
 
-        state["execution_plan"] = normalized_plan
-
-        # ---------------------------------------------------------
-        # Metadata
-        # ---------------------------------------------------------
-
-        state["tool_count"] = len(normalized_plan)
-
-        state["routing_reason"] = state.get(
-            "planning_reason",
-            "Planner execution plan validated.",
+        state.update(
+            {
+                "execution_plan": normalized_plan,
+                "tool_count": len(normalized_plan),
+                "routing_reason": state.get(
+                    "planning_reason",
+                    "Planner execution plan validated.",
+                ),
+            }
         )
-
-        # ---------------------------------------------------------
-        # Execution Trace
-        # ---------------------------------------------------------
 
         state.setdefault(
             "execution_trace",
             [],
         ).append(
             {
-                "agent": "SupervisorAgent",
+                "agent": self.name,
                 "tools": [
                     step["tool"]
                     for step in normalized_plan

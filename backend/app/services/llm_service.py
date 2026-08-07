@@ -9,14 +9,29 @@ from app.prompts.general_answer_prompt import GENERAL_ANSWER_PROMPT
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+LLM_TIMEOUT = 120
 
 # =============================================================================
 # Generic LLM Client
 # =============================================================================
 
+
 def call_llm(prompt: str) -> str:
     """
-    Generic transport layer for communicating with the configured LLM.
+    Sends a prompt to the configured LLM and returns the generated response.
+
+    Used by:
+        - PlannerAgent
+        - QueryRewriterAgent
+        - CompressionAgent
+        - AnswerAgent
+        - ReflectionAgent
+        - VerificationAgent
+        - Future agents
     """
 
     logger.info(
@@ -25,48 +40,57 @@ def call_llm(prompt: str) -> str:
         len(prompt),
     )
 
-    response = requests.post(
-        f"{settings.OLLAMA_BASE_URL}/api/generate",
-        json={
-            "model": settings.OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-        },
-        timeout=120,
-    )
+    try:
+        response = requests.post(
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=LLM_TIMEOUT,
+        )
 
-    response.raise_for_status()
+        response.raise_for_status()
 
-    return response.json().get(
-        "response",
-        "",
-    )
+        logger.info("LLM completed successfully.")
+
+        return response.json().get(
+            "response",
+            "",
+        ).strip()
+
+    except requests.RequestException:
+        logger.exception("LLM request failed.")
+        raise
 
 
 # =============================================================================
 # JSON LLM
 # =============================================================================
 
+
 def invoke_json_llm(prompt: str) -> dict:
     """
-    Invoke the LLM expecting a JSON response.
+    Calls the LLM expecting a JSON response.
 
     Used by:
-        - Planner
-        - Reflection
-        - Verification
+        - PlannerAgent
+        - ReflectionAgent
+        - VerificationAgent
         - Future Tool Planner
     """
 
-    response = call_llm(prompt)
+    response = call_llm(prompt).strip()
 
     try:
         return json.loads(response)
 
     except json.JSONDecodeError:
 
-        logger.exception(
-            "Failed to parse JSON response from LLM."
+        logger.error(
+            "Invalid JSON returned by LLM:\n%s",
+            response,
         )
 
         raise ValueError(
@@ -78,11 +102,15 @@ def invoke_json_llm(prompt: str) -> dict:
 # Enterprise RAG Answer Generation
 # =============================================================================
 
+
 def generate_answer(
     question: str,
     context: str,
     memory_context: str = "",
 ) -> str:
+    """
+    Generates an answer grounded in retrieved enterprise documents.
+    """
 
     prompt = ANSWER_PROMPT.format(
         memory_context=memory_context,
@@ -97,10 +125,15 @@ def generate_answer(
 # General Answer Generation
 # =============================================================================
 
+
 def generate_general_answer(
     question: str,
     memory_context: str = "",
 ) -> str:
+    """
+    Generates a conversational answer that does not require
+    enterprise document retrieval.
+    """
 
     prompt = GENERAL_ANSWER_PROMPT.format(
         memory_context=memory_context,

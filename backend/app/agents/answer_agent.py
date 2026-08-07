@@ -20,6 +20,13 @@ DEFAULT_QUERY_TYPE = "knowledge"
 
 
 class AnswerAgent(BaseAgent):
+    """
+    Generates the final answer using the appropriate answer generator.
+
+    This agent selects the answer generation strategy based on the query type,
+    validates retrieval quality, and falls back to a safe response when
+    insufficient evidence is available.
+    """
 
     def __init__(self):
         super().__init__("AnswerAgent")
@@ -29,13 +36,22 @@ class AnswerAgent(BaseAgent):
         state: GraphState,
     ) -> GraphState:
 
-        # ---------------------------------------------------------
-        # Select Answer Generation Strategy
-        # ---------------------------------------------------------
+        query_type = (
+            state.get(
+                "query_type",
+                DEFAULT_QUERY_TYPE,
+            )
+            .strip()
+            .lower()
+        )
 
-        query_type = state.get(
-            "query_type",
-            DEFAULT_QUERY_TYPE,
+        retrieval_strategy = (
+            state.get(
+                "retrieval_strategy",
+                "semantic",
+            )
+            .strip()
+            .lower()
         )
 
         retrieval_score = float(
@@ -43,11 +59,6 @@ class AnswerAgent(BaseAgent):
                 "retrieval_score",
                 0.0,
             )
-        )
-
-        retrieval_strategy = state.get(
-            "retrieval_strategy",
-            "semantic",
         )
 
         threshold = RETRIEVAL_THRESHOLDS.get(
@@ -65,7 +76,6 @@ class AnswerAgent(BaseAgent):
         # ---------------------------------------------------------
 
         try:
-
             generator = AnswerFactory.get(query_type)
 
         except Exception:
@@ -86,13 +96,11 @@ class AnswerAgent(BaseAgent):
         logger.info("=" * 70)
         logger.info("AnswerAgent")
         logger.info("Query Type      : %s", query_type)
+        logger.info("Generator       : %s", generator.__class__.__name__)
         logger.info("Strategy        : %s", retrieval_strategy)
         logger.info("Retrieval Score : %.4f", retrieval_score)
         logger.info("Threshold       : %.4f", threshold)
-        logger.info(
-            "Retrieved Docs  : %d",
-            retrieved_documents,
-        )
+        logger.info("Retrieved Docs  : %d", retrieved_documents)
         logger.info(
             "Retrieved Chunks: %d",
             len(state.get("retrieved_chunks", [])),
@@ -100,33 +108,27 @@ class AnswerAgent(BaseAgent):
         logger.info("=" * 70)
 
         # ---------------------------------------------------------
-        # Low Retrieval Confidence Guard
+        # No Supporting Documents
         # ---------------------------------------------------------
 
-        if (
-            retrieved_documents == 0
-            or (
-                retrieval_score < threshold
-                and not state.get("retrieved_chunks")
-            )
-        ):
+        if retrieved_documents == 0:
 
             logger.warning(
-                "Insufficient retrieval results. "
-                "score=%.4f threshold=%.4f docs=%d",
-                retrieval_score,
-                threshold,
-                retrieved_documents,
+                "No supporting documents retrieved."
             )
 
-            state["answer"] = self._fallback_answer()
+            state.update(
+                {
+                    "answer": self._fallback_answer(),
+                }
+            )
 
             state.setdefault(
                 "execution_trace",
                 [],
             ).append(
                 {
-                    "agent": "AnswerAgent",
+                    "agent": self.name,
                     "strategy": "LowConfidenceFallback",
                     "retrieval_strategy": retrieval_strategy,
                     "retrieval_score": retrieval_score,
@@ -147,22 +149,29 @@ class AnswerAgent(BaseAgent):
 
         try:
 
-            state["answer"] = generator.generate(state)
+            answer = generator.generate(state)
 
-        except Exception:
+        except Exception as exc:
 
             logger.exception(
-                "Answer generation failed."
+                "Answer generation failed using %s.",
+                generator.__class__.__name__,
             )
 
-            state["answer"] = self._fallback_answer()
+            answer = self._fallback_answer()
+
+        state.update(
+            {
+                "answer": answer,
+            }
+        )
 
         state.setdefault(
             "execution_trace",
             [],
         ).append(
             {
-                "agent": "AnswerAgent",
+                "agent": self.name,
                 "query_type": query_type,
                 "strategy": generator.__class__.__name__,
                 "retrieval_strategy": retrieval_strategy,

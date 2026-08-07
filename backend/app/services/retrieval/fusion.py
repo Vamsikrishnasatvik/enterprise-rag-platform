@@ -1,50 +1,81 @@
-from collections import defaultdict
 import logging
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Constants
+# =============================================================================
+
+DEFAULT_RRF_K = 60
+
+# =============================================================================
+# Reciprocal Rank Fusion
+# =============================================================================
 
 
 def reciprocal_rank_fusion(
     result_sets: list[list],
-    k: int = 60,
-):
+    k: int = DEFAULT_RRF_K,
+) -> list:
     """
-    Fuse multiple ranked result lists using Reciprocal Rank Fusion (RRF).
+    Combines multiple ranked retrieval result sets using
+    Reciprocal Rank Fusion (RRF).
 
     Args:
-        result_sets: List of ranked retrieval result lists.
-        k: RRF constant (default = 60).
+        result_sets:
+            Ranked retrieval result lists.
+
+        k:
+            RRF smoothing constant.
 
     Returns:
-        One ranked list.
+        A single fused ranking.
     """
 
-    fused_scores = defaultdict(float)
-    unique_results = {}
+    if not result_sets:
+
+        logger.info(
+            "RRF skipped (no result sets)."
+        )
+
+        return []
+
+    fused_scores: defaultdict[int, float] = defaultdict(float)
+    unique_results: dict[int, object] = {}
 
     for results in result_sets:
 
+        if not results:
+            continue
+
         for rank, chunk in enumerate(results, start=1):
 
-            chunk_id = chunk.payload["chunk_id"]
+            chunk_id = chunk.payload.get("chunk_id")
+
+            if chunk_id is None:
+                continue
 
             unique_results[chunk_id] = chunk
 
-            fused_scores[chunk_id] += 1 / (k + rank)
-
-    ranked = sorted(
-        fused_scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )
+            fused_scores[chunk_id] += (
+                1.0 / (k + rank)
+            )
 
     fused_results = [
         unique_results[chunk_id]
-        for chunk_id, _ in ranked
+        for chunk_id, _ in sorted(
+            fused_scores.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
     ]
 
     logger.info(
-        "RRF fused %d result sets into %d unique chunks",
+        (
+            "RRF | result_sets=%d | "
+            "unique_chunks=%d"
+        ),
         len(result_sets),
         len(fused_results),
     )

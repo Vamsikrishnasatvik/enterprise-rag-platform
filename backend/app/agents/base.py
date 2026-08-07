@@ -2,15 +2,35 @@ import logging
 import time
 from abc import ABC, abstractmethod
 
+from app.graph.state import GraphState
+
 logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
+    """
+    Base class for all workflow agents.
 
-    def __init__(self, name: str):
+    Provides a standardized execution lifecycle including:
+
+    - start/end logging
+    - execution timing
+    - execution trace recording
+    - centralized error handling
+
+    Concrete agents only implement `run()`.
+    """
+
+    def __init__(
+        self,
+        name: str,
+    ):
         self.name = name
 
-    def __call__(self, state):
+    def __call__(
+        self,
+        state: GraphState,
+    ) -> GraphState:
 
         logger.info("[%s] START", self.name)
 
@@ -20,7 +40,10 @@ class BaseAgent(ABC):
 
             state = self.run(state)
 
-            elapsed = round(time.perf_counter() - start, 3)
+            elapsed = round(
+                time.perf_counter() - start,
+                3,
+            )
 
             state.setdefault(
                 "agent_timings",
@@ -48,7 +71,10 @@ class BaseAgent(ABC):
 
         except Exception as exc:
 
-            elapsed = round(time.perf_counter() - start, 3)
+            elapsed = round(
+                time.perf_counter() - start,
+                3,
+            )
 
             state.setdefault(
                 "errors",
@@ -68,12 +94,26 @@ class BaseAgent(ABC):
                     "agent": self.name,
                     "status": "failed",
                     "duration": elapsed,
+                    "error": str(exc),
                 }
             )
 
-            logger.exception("[%s] FAILED", self.name)
+            logger.exception(
+                "[%s] FAILED (%.3fs)",
+                self.name,
+                elapsed,
+            )
+
             raise
 
     @abstractmethod
-    def run(self, state):
-        pass
+    def run(
+        self,
+        state: GraphState,
+    ) -> GraphState:
+        """
+        Execute the agent-specific business logic.
+
+        Implementations should update and return the shared GraphState.
+        """
+        raise NotImplementedError

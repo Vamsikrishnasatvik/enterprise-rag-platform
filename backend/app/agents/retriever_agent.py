@@ -11,6 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class RetrieverAgent(BaseAgent):
+    """
+    Retrieves enterprise knowledge using the configured retrieval strategy.
+
+    Responsible for:
+    - Dynamic Top-K selection
+    - Document retrieval
+    - Context construction
+    - Retrieval statistics
+    """
 
     def __init__(self):
         super().__init__("RetrieverAgent")
@@ -22,18 +31,30 @@ class RetrieverAgent(BaseAgent):
         state: GraphState,
     ) -> GraphState:
 
-        # ---------------------------------------------------------
-        # Retrieval Configuration
-        # ---------------------------------------------------------
+        retrieval_query = (
+            state.get("retrieval_query")
+            or state.get("question", "")
+        ).strip()
 
-        retrieval_query = state.get(
-            "retrieval_query",
-            state["question"],
-        )
+        if not retrieval_query:
+            state.update(
+                {
+                    "retrieved_chunks": [],
+                    "retrieval_context": "",
+                    "retrieval_score": 0.0,
+                    "retrieved_document_count": 0,
+                    "reranker_score": None,
+                }
+            )
+            return state
 
-        retrieval_strategy = state.get(
-            "retrieval_strategy",
-            "semantic",
+        retrieval_strategy = (
+            state.get(
+                "retrieval_strategy",
+                "semantic",
+            )
+            .strip()
+            .lower()
         )
 
         retry_count = state.get(
@@ -42,14 +63,12 @@ class RetrieverAgent(BaseAgent):
         )
 
         # ---------------------------------------------------------
-        # Dynamic Top-K Selection
+        # Dynamic Top-K
         # ---------------------------------------------------------
 
         dynamic_top_k = self.selector.select(
             retrieval_query,
         )
-
-        state["retrieval_limit"] = dynamic_top_k
 
         logger.info(
             "Retriever | retry=%d | strategy=%s | top_k=%d",
@@ -59,7 +78,7 @@ class RetrieverAgent(BaseAgent):
         )
 
         # ---------------------------------------------------------
-        # Retrieve Documents
+        # Retrieval
         # ---------------------------------------------------------
 
         results = self.retriever.retrieve(
@@ -68,36 +87,17 @@ class RetrieverAgent(BaseAgent):
             strategy=retrieval_strategy,
         )
 
-        # ---------------------------------------------------------
-        # Build Context
-        # ---------------------------------------------------------
-
         retrieval_context = build_context(results)
 
         # ---------------------------------------------------------
-        # Store Retrieval Results
-        # ---------------------------------------------------------
-
-        state["retrieval_query"] = retrieval_query
-        state["retrieved_chunks"] = results
-        state["retrieval_context"] = retrieval_context
-
-        # ---------------------------------------------------------
-        # Retrieval Statistics
+        # Statistics
         # ---------------------------------------------------------
 
         unique_documents = {
-            chunk.payload["document_id"]
+            chunk.payload.get("document_id")
             for chunk in results
+            if chunk.payload.get("document_id") is not None
         }
-
-        state["retrieved_document_count"] = len(
-            unique_documents
-        )
-
-        # ---------------------------------------------------------
-        # Retrieval Confidence
-        # ---------------------------------------------------------
 
         semantic_score = max(
             (
@@ -111,22 +111,29 @@ class RetrieverAgent(BaseAgent):
         )
 
         rerank_score = (
-            results[0].payload.get("rerank_score")
+            results[0].payload.get(
+                "rerank_score"
+            )
             if results
             else None
         )
 
-        # Semantic similarity is the confidence score used by
-        # AnswerAgent thresholds.
-        state["retrieval_score"] = semantic_score
-
-        # Keep reranker score for debugging only.
-        state["reranker_score"] = rerank_score
+        state.update(
+            {
+                "retrieval_query": retrieval_query,
+                "retrieval_limit": dynamic_top_k,
+                "retrieved_chunks": results,
+                "retrieval_context": retrieval_context,
+                "retrieved_document_count": len(unique_documents),
+                "retrieval_score": semantic_score,
+                "reranker_score": rerank_score,
+            }
+        )
 
         logger.info(
             "Retriever | retrieved=%d chunks | documents=%d | semantic_score=%.4f | rerank_score=%s",
             len(results),
-            state["retrieved_document_count"],
+            len(unique_documents),
             semantic_score,
             (
                 f"{rerank_score:.4f}"
@@ -135,22 +142,18 @@ class RetrieverAgent(BaseAgent):
             ),
         )
 
-        # ---------------------------------------------------------
-        # Execution Trace
-        # ---------------------------------------------------------
-
         state.setdefault(
             "execution_trace",
             [],
         ).append(
             {
-                "agent": "RetrieverAgent",
+                "agent": self.name,
                 "query": retrieval_query,
                 "strategy": retrieval_strategy,
                 "retry": retry_count,
                 "top_k": dynamic_top_k,
                 "chunks": len(results),
-                "documents": state["retrieved_document_count"],
+                "documents": len(unique_documents),
                 "semantic_score": semantic_score,
                 "rerank_score": rerank_score,
             }

@@ -2,6 +2,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from app.graph.state import GraphState
 from app.graph.workflow import graph
 from app.services.message_service import create_message
 
@@ -20,68 +21,59 @@ VALID_RETRIEVAL_STRATEGIES = {
     "hybrid",
 }
 
+# =============================================================================
+# Graph State Builder
+# =============================================================================
 
-# =============================================================================
-# State Builder
-# =============================================================================
 
 def build_initial_state(
     db: Session,
     conversation_id: int,
     question: str,
     retrieval_strategy: str = "hybrid",
-) -> dict:
+) -> GraphState:
     """
-    Build the initial GraphState for the workflow.
+    Builds the initial GraphState for the Agentic RAG workflow.
     """
 
     return {
-
         # ---------------------------------------------------------------------
         # Runtime
         # ---------------------------------------------------------------------
-
         "db": db,
         "conversation_id": conversation_id,
 
         # ---------------------------------------------------------------------
         # User Input
         # ---------------------------------------------------------------------
-
         "question": question,
 
         # ---------------------------------------------------------------------
-        # Memory
+        # Conversation Memory
         # ---------------------------------------------------------------------
-
         "conversation_summary": "",
         "recent_messages": [],
+        "conversation_history": [],
         "memory_context": "",
 
         # ---------------------------------------------------------------------
-        # Planner
+        # Planning
         # ---------------------------------------------------------------------
-
-        "execution_plan": {},
         "query_type": "",
         "planning_reason": "",
+        "execution_plan": [],
 
         # ---------------------------------------------------------------------
-        # Supervisor
+        # Query Rewriting
         # ---------------------------------------------------------------------
-
-        "next_node": "",
-        "routing_reason": "",
-        "needs_retrieval": False,
-        "needs_verification": False,
+        "original_question": question,
+        "retrieval_query": "",
 
         # ---------------------------------------------------------------------
         # Retrieval
         # ---------------------------------------------------------------------
-
-        "retrieval_query": "",
-        "retrieval_limit": DEFAULT_TOP_K,
         "retrieval_strategy": retrieval_strategy,
+        "retrieval_limit": DEFAULT_TOP_K,
         "retrieved_chunks": [],
         "retrieval_context": "",
         "retrieved_document_count": 0,
@@ -89,16 +81,19 @@ def build_initial_state(
         "reranker_score": 0.0,
 
         # ---------------------------------------------------------------------
+        # Tool Execution
+        # ---------------------------------------------------------------------
+        "tool_outputs": [],
+
+        # ---------------------------------------------------------------------
         # Answer
         # ---------------------------------------------------------------------
-
         "answer": "",
         "citations": [],
 
         # ---------------------------------------------------------------------
         # Reflection
         # ---------------------------------------------------------------------
-
         "reflection": {},
         "confidence_score": 0.0,
         "needs_retry": False,
@@ -106,7 +101,6 @@ def build_initial_state(
         # ---------------------------------------------------------------------
         # Verification
         # ---------------------------------------------------------------------
-
         "verification": {},
         "verification_passed": False,
         "verification_reason": "",
@@ -114,7 +108,6 @@ def build_initial_state(
         # ---------------------------------------------------------------------
         # Retry
         # ---------------------------------------------------------------------
-
         "retry_required": False,
         "retry_reason": "",
         "retry_count": 0,
@@ -123,33 +116,25 @@ def build_initial_state(
         # ---------------------------------------------------------------------
         # Monitoring
         # ---------------------------------------------------------------------
-
         "execution_trace": [],
         "agent_timings": {},
         "errors": [],
-
-        # ---------------------------------------------------------------------
-        # Tool Calling (Future)
-        # ---------------------------------------------------------------------
-
-        "selected_tool": "",
-        "tool_result": {},
-        "tool_reason": "",
     }
 
 
 # =============================================================================
-# Persistence
+# Conversation Persistence
 # =============================================================================
+
 
 def persist_messages(
     db: Session,
     conversation_id: int,
     question: str,
     answer: str,
-):
+) -> None:
     """
-    Persist the user and assistant messages.
+    Persists the user question and generated assistant answer.
     """
 
     create_message(
@@ -173,15 +158,20 @@ def persist_messages(
 # Source Builder
 # =============================================================================
 
-def build_sources(result: dict) -> list[dict]:
+
+def build_sources(
+    result: GraphState,
+) -> list[dict]:
     """
-    Convert retrieved chunks into API response format.
+    Converts retrieved chunks into API response sources.
     """
 
     sources = []
 
-    for chunk in result.get("retrieved_chunks", []):
-
+    for chunk in result.get(
+        "retrieved_chunks",
+        [],
+    ):
         payload = chunk.payload
 
         sources.append(
@@ -200,46 +190,126 @@ def build_sources(result: dict) -> list[dict]:
 # Workflow Logging
 # =============================================================================
 
-def log_workflow_summary(result: dict):
+
+def log_workflow_summary(
+    result: GraphState,
+) -> None:
     """
-    Log the overall workflow execution summary.
+    Logs a concise summary of workflow execution.
     """
+
+    reflection = result.get(
+        "reflection",
+        {},
+    )
+
+    verification = result.get(
+        "verification",
+        {},
+    )
 
     logger.info("=" * 80)
     logger.info("Workflow Complete")
-    logger.info("Query Type      : %s", result.get("query_type"))
-    logger.info("Route           : %s", result.get("next_node"))
-    logger.info("Retries         : %d", result.get("retry_count", 0))
-    logger.info("Documents       : %d", result.get("retrieved_document_count", 0))
-    logger.info("Top Score       : %.4f", result.get("retrieval_score", 0.0))
-    logger.info("Confidence      : %.2f", result.get("confidence_score", 0.0))
-    logger.info("Answer Length   : %d", len(result.get("answer", "")))
+    logger.info(
+        "Query Type              : %s",
+        result.get("query_type"),
+    )
+    logger.info(
+        "Execution Steps         : %d",
+        len(result.get("execution_plan", [])),
+    )
+    logger.info(
+        "Retrieved Documents     : %d",
+        result.get(
+            "retrieved_document_count",
+            0,
+        ),
+    )
+    logger.info(
+        "Retrieval Score         : %.4f",
+        result.get(
+            "retrieval_score",
+            0.0,
+        ),
+    )
+    logger.info(
+        "Reflection Confidence   : %.2f",
+        reflection.get(
+            "confidence",
+            0.0,
+        ),
+    )
+    logger.info(
+        "Verification Confidence : %.2f",
+        verification.get(
+            "confidence",
+            0.0,
+        ),
+    )
+    logger.info(
+        "Retries                 : %d",
+        result.get(
+            "retry_count",
+            0,
+        ),
+    )
+    logger.info(
+        "Answer Length           : %d",
+        len(result.get("answer", "")),
+    )
     logger.info("=" * 80)
 
 
 # =============================================================================
-# Response Builder
+# API Response Builder
 # =============================================================================
 
-def build_response(result: dict) -> dict:
+
+def build_response(
+    result: GraphState,
+) -> dict:
     """
-    Build the API response.
+    Builds the API response returned to the client.
     """
 
     return {
-        "answer": result["answer"],
+        "answer": result.get("answer", ""),
         "sources": build_sources(result),
         "citations": result.get("citations", []),
         "reflection": result.get("reflection", {}),
         "verification": result.get("verification", {}),
-        "confidence": result.get("confidence_score", 0.0),
+        "confidence": result.get(
+            "reflection",
+            {},
+        ).get(
+            "confidence",
+            0.0,
+        ),
         "query_type": result.get("query_type"),
-        "retrieval_score": result.get("retrieval_score", 0.0),
-        "retrieved_documents": result.get("retrieved_document_count", 0),
-        "retry_count": result.get("retry_count", 0),
-        "execution_trace": result.get("execution_trace", []),
-        "agent_timings": result.get("agent_timings", {}),
-        "errors": result.get("errors", []),
+        "retrieval_score": result.get(
+            "retrieval_score",
+            0.0,
+        ),
+        "retrieved_document_count": result.get(
+            "retrieved_document_count",
+            0,
+        ),
+        "retry_count": result.get(
+            "retry_count",
+            0,
+        ),
+        "execution_trace": result.get(
+            "execution_trace",
+            [],
+        ),
+        "agent_timings": result.get(
+            "agent_timings",
+            {},
+        ),
+        "errors": result.get(
+            "errors",
+            [],
+        ),
     }
 
 
@@ -247,19 +317,18 @@ def build_response(result: dict) -> dict:
 # Public API
 # =============================================================================
 
+
 def answer_question(
     db: Session,
     conversation_id: int,
     question: str,
     retrieval_strategy: str = "hybrid",
-):
+) -> dict:
     """
-    Execute the complete Agentic RAG workflow.
+    Executes the complete Agentic RAG workflow.
     """
 
-    # -------------------------------------------------------------------------
-    # Validate Retrieval Strategy
-    # -------------------------------------------------------------------------
+    retrieval_strategy = retrieval_strategy.lower()
 
     if retrieval_strategy not in VALID_RETRIEVAL_STRATEGIES:
 
@@ -278,16 +347,18 @@ def answer_question(
     )
 
     logger.info(
-        "Starting Agentic RAG Workflow | conversation=%s | strategy=%s | top_k=%d | max_retries=%d",
+        (
+            "Starting Agentic RAG Workflow | "
+            "conversation=%s | "
+            "strategy=%s | "
+            "top_k=%d | "
+            "max_retries=%d"
+        ),
         conversation_id,
         retrieval_strategy,
         state["retrieval_limit"],
         state["max_retries"],
     )
-
-    # -------------------------------------------------------------------------
-    # Execute Workflow
-    # -------------------------------------------------------------------------
 
     try:
 
@@ -307,10 +378,6 @@ def answer_question(
         raise
 
     log_workflow_summary(result)
-
-    # -------------------------------------------------------------------------
-    # Persist Conversation
-    # -------------------------------------------------------------------------
 
     try:
 

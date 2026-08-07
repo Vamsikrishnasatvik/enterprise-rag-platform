@@ -3,7 +3,18 @@ from app.graph.state import GraphState
 from app.services.planner_service import create_execution_plan
 
 
+DEFAULT_EXECUTION_PLAN = [
+    {
+        "tool": "rag",
+        "inputs": {},
+    }
+]
+
+
 class PlannerAgent(BaseAgent):
+    """
+    Generates an execution plan for the user's request.
+    """
 
     def __init__(self):
         super().__init__("PlannerAgent")
@@ -14,105 +25,63 @@ class PlannerAgent(BaseAgent):
     ) -> GraphState:
 
         plan = create_execution_plan(
-            question=state["question"],
+            question=state.get("question", ""),
             memory_context=state.get(
                 "memory_context",
                 "",
             ),
         )
 
-        # ---------------------------------------------------------
-        # Query Type
-        # ---------------------------------------------------------
-
-        state["query_type"] = plan.get(
+        query_type = plan.get(
             "query_type",
             "knowledge",
         )
 
-        # ---------------------------------------------------------
-        # Execution Plan
-        # ---------------------------------------------------------
-
         execution_plan = plan.get(
             "execution_plan",
-            [
-                {
-                    "tool": "rag",
-                    "inputs": {},
-                }
-            ],
+            DEFAULT_EXECUTION_PLAN.copy(),
         )
 
-        # ---------------------------------------------------------
-        # Backward Compatibility
-        # ---------------------------------------------------------
-
         if isinstance(execution_plan, dict):
-            execution_plan = [
-                {
-                    "tool": "rag",
-                    "inputs": {},
-                }
-            ]
-
-        # ---------------------------------------------------------
-        # Validate Execution Plan
-        # ---------------------------------------------------------
+            execution_plan = DEFAULT_EXECUTION_PLAN.copy()
 
         normalized_plan = []
 
         for step in execution_plan:
 
-            tool = step.get(
-                "tool",
-                "rag",
-            )
-
-            inputs = step.get(
-                "inputs",
-                {},
-            )
+            if not isinstance(step, dict):
+                continue
 
             normalized_plan.append(
                 {
-                    "tool": tool,
-                    "inputs": inputs,
+                    "tool": step.get("tool", "rag"),
+                    "inputs": step.get("inputs", {}),
                 }
             )
 
-        execution_plan = normalized_plan
+        if not normalized_plan:
+            normalized_plan = DEFAULT_EXECUTION_PLAN.copy()
 
-        state["execution_plan"] = execution_plan
-
-        # Backward compatibility for components
-        # that still read tool_name.
-        state["tool_name"] = execution_plan[0]["tool"]
-
-        # ---------------------------------------------------------
-        # Planning Reason
-        # ---------------------------------------------------------
-
-        state["planning_reason"] = plan.get(
-            "reason",
-            "",
+        state.update(
+            {
+                "query_type": query_type,
+                "execution_plan": normalized_plan,
+                "tool_name": normalized_plan[0]["tool"],  # Backward compatibility
+                "planning_reason": plan.get("reason", ""),
+            }
         )
-
-        # ---------------------------------------------------------
-        # Execution Trace
-        # ---------------------------------------------------------
 
         state.setdefault(
             "execution_trace",
             [],
         ).append(
             {
-                "agent": "PlannerAgent",
-                "query_type": state["query_type"],
-                "steps": len(execution_plan),
+                "agent": self.name,
+                "query_type": query_type,
+                "steps": len(normalized_plan),
                 "tools": [
                     step["tool"]
-                    for step in execution_plan
+                    for step in normalized_plan
                 ],
                 "reason": state["planning_reason"],
             }

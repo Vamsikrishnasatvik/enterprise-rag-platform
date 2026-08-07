@@ -5,7 +5,7 @@ from app.services.memory_service import memory_service
 
 class MemoryAgent(BaseAgent):
     """
-    Loads conversation memory and prepares
+    Loads conversation memory and prepares the
     memory context for downstream agents.
     """
 
@@ -17,22 +17,42 @@ class MemoryAgent(BaseAgent):
         conversation_id = state.get("conversation_id")
         db = state.get("db")
 
-        if not conversation_id:
-            state["conversation_summary"] = ""
-            state["recent_messages"] = []
-            state["conversation_history"] = []
-            state["memory_context"] = ""
+        if not conversation_id or db is None:
+            state.update(
+                {
+                    "conversation_summary": "",
+                    "recent_messages": [],
+                    "conversation_history": [],
+                    "memory_context": "",
+                }
+            )
             return state
 
-        memory = memory_service.get_memory_context(
+        memory: dict = memory_service.get_memory_context(
             db=db,
             conversation_id=conversation_id,
-            question=state["question"],
+            question=state.get("question", ""),
         )
 
-        state["conversation_summary"] = memory.get("conversation_summary", "")
-        state["recent_messages"] = memory.get("recent_messages", [])
-        state["conversation_history"] = memory.get("conversation_history", [])
-        state["memory_context"] = memory.get("memory_context", "")
+        state.update(
+            {
+                "conversation_summary": memory.get(
+                    "conversation_summary",
+                    "",
+                ),
+                "recent_messages": memory.get(
+                    "recent_messages",
+                    [],
+                ),
+                "conversation_history": memory.get(
+                    "conversation_history",
+                    [],
+                ),
+                "memory_context": memory.get(
+                    "memory_context",
+                    "",
+                ),
+            }
+        )
 
         return state

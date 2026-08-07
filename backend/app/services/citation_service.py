@@ -1,25 +1,48 @@
 import re
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+DEFAULT_CITATION = "[1]"
+
+SENTENCE_SPLIT_PATTERN = r"(?<=[.!?])\s+"
+
+EXISTING_CITATION_PATTERN = r"\[\d+\]$"
+
+# =============================================================================
+# Citation Service
+# =============================================================================
+
 
 def add_citations(
     answer: str,
     sources: list,
 ) -> str:
     """
-    Adds a citation marker to each sentence in the answer.
+    Adds deterministic inline citations to an answer.
 
-    This implementation is deterministic and does not
-    invoke another LLM.
+    Each sentence receives a citation marker unless it already
+    ends with an existing citation.
+
+    This implementation is deterministic and does not invoke
+    another LLM.
     """
+
+    if not answer.strip():
+        return answer
 
     if not sources:
         return answer
 
-    citation = "[1]"
+    citation = DEFAULT_CITATION
 
-    sentences = re.split(r"(?<=[.!?])\s+", answer.strip())
+    sentences = re.split(
+        SENTENCE_SPLIT_PATTERN,
+        answer.strip(),
+    )
 
-    cited = []
+    cited_sentences = []
 
     for sentence in sentences:
 
@@ -28,9 +51,15 @@ def add_citations(
         if not sentence:
             continue
 
-        if re.search(r"\[\d+\]$", sentence):
-            cited.append(sentence)
-        else:
-            cited.append(f"{sentence} {citation}")
+        if re.search(
+            EXISTING_CITATION_PATTERN,
+            sentence,
+        ):
+            cited_sentences.append(sentence)
+            continue
 
-    return " ".join(cited)
+        cited_sentences.append(
+            f"{sentence} {citation}"
+        )
+
+    return " ".join(cited_sentences)

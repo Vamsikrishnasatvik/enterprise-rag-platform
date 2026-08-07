@@ -1,3 +1,4 @@
+import logging
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -5,37 +6,55 @@ from sqlalchemy import or_
 
 from app.db.session import SessionLocal
 from app.models.document_chunk import DocumentChunk
-
 from app.services.embedding_service import generate_embeddings
-from app.services.vector_service import client
 from app.services.reranker_service import rerank_results
+from app.services.vector_service import client
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Constants
+# =============================================================================
 
 COLLECTION_NAME = "document_chunks"
 
+DEFAULT_KEYWORD_SCORE = 0.50
+HYBRID_MULTIPLIER = 2
+MIN_KEYWORD_LENGTH = 3
 
-# ==========================================================
-# Search Result Wrapper
-# ==========================================================
+# =============================================================================
+# Search Result
+# =============================================================================
+
 
 @dataclass
 class SearchResult:
+    """
+    Standard search result returned by every retrieval strategy.
+    """
+
     score: float
     payload: dict
 
 
-# ==========================================================
+# =============================================================================
 # Semantic Search
-# ==========================================================
+# =============================================================================
+
 
 def semantic_search(
     query: str,
     limit: int,
-):
+) -> list[SearchResult]:
     """
-    Vector similarity search using Qdrant.
+    Performs vector similarity search using Qdrant.
+    """
 
-    The returned score is the semantic similarity score.
-    """
+    logger.info(
+        "Semantic search | query='%s' | limit=%d",
+        query,
+        limit,
+    )
 
     vector = generate_embeddings([query])[0]
 
@@ -61,20 +80,32 @@ def semantic_search(
             )
         )
 
+    logger.info(
+        "Semantic search returned %d chunk(s).",
+        len(results),
+    )
+
     return results
 
 
-# ==========================================================
+# =============================================================================
 # Keyword Search
-# ==========================================================
+# =============================================================================
+
 
 def keyword_search(
     query: str,
     limit: int,
-):
+) -> list[SearchResult]:
     """
-    PostgreSQL keyword search using ILIKE.
+    Performs PostgreSQL keyword search using ILIKE.
     """
+
+    logger.info(
+        "Keyword search | query='%s' | limit=%d",
+        query,
+        limit,
+    )
 
     db = SessionLocal()
 
@@ -83,7 +114,7 @@ def keyword_search(
         words = [
             word.strip()
             for word in query.split()
-            if len(word.strip()) > 2
+            if len(word.strip()) >= MIN_KEYWORD_LENGTH
         ]
 
         if not words:
@@ -107,21 +138,28 @@ def keyword_search(
 
             results.append(
                 SearchResult(
-                    score=0.50,
+                    score=DEFAULT_KEYWORD_SCORE,
                     payload={
                         "chunk_id": chunk.id,
                         "document_id": chunk.document_id,
                         "content": chunk.content,
-
-                        # Preserve keyword confidence
-                        "keyword_score": 0.50,
+                        "keyword_score": DEFAULT_KEYWORD_SCORE,
                     },
                 )
             )
 
+        logger.info(
+            "Keyword search returned %d chunk(s).",
+            len(results),
+        )
+
         return results
 
     except Exception:
+
+        logger.exception(
+            "Keyword search failed."
+        )
 
         return []
 
@@ -129,20 +167,18 @@ def keyword_search(
         db.close()
 
 
-# ==========================================================
+# =============================================================================
 # Merge Results
-# ==========================================================
+# =============================================================================
+
 
 def merge_results(
-    semantic_results,
-    keyword_results,
-):
+    semantic_results: list[SearchResult],
+    keyword_results: list[SearchResult],
+) -> list[SearchResult]:
     """
-    Merge semantic and keyword results.
-
-    Semantic metadata is preserved.
-
-    Keyword metadata is merged into existing semantic hits.
+    Merges semantic and keyword search results while preserving
+    semantic and keyword metadata.
     """
 
     merged = OrderedDict()
@@ -152,58 +188,82 @@ def merge_results(
         chunk_id = chunk.payload["chunk_id"]
 
         if chunk_id not in merged:
-
             merged[chunk_id] = chunk
             continue
 
         existing = merged[chunk_id]
 
-        # Preserve semantic score
-        if "semantic_score" in chunk.payload:
-            existing.payload["semantic_score"] = chunk.payload[
-                "semantic_score"
-            ]
+        existing.payload.update(
+            {
+                key: value
+                for key, value in chunk.payload.items()
+                if key in (
+                    "semantic_score",
+                    "keyword_score",
+                )
+            }
+        )
 
-        # Preserve keyword score
-        if "keyword_score" in chunk.payload:
-            existing.payload["keyword_score"] = chunk.payload[
-                "keyword_score"
-            ]
+        existing.score = max(
+            existing.score,
+            chunk.score,
+        )
 
-        # Keep highest merge score
-        if chunk.score > existing.score:
-            existing.score = chunk.score
-
-    return sorted(
+    merged_results = sorted(
         merged.values(),
-        key=lambda c: c.score,
+        key=lambda result: result.score,
         reverse=True,
     )
 
+    logger.info(
+        "Merged retrieval results | semantic=%d | keyword=%d | merged=%d",
+        len(semantic_results),
+        len(keyword_results),
+        len(merged_results),
+    )
 
-# ==========================================================
+    return merged_results
+
+
+# =============================================================================
 # Public Search API
-# ==========================================================
+# =============================================================================
+
 
 def search_chunks(
     query: str,
     limit: int = 3,
     strategy: str = "semantic",
-):
+) -> list[SearchResult]:
     """
-    Unified retrieval entrypoint.
+    Unified retrieval entry point.
+
+    Supported strategies:
+        - semantic
+        - keyword
+        - hybrid
     """
 
     query = query.strip()
 
     if not query:
+        logger.warning(
+            "Empty retrieval query received."
+        )
         return []
 
     strategy = strategy.lower()
 
-    # ---------------------------------------------------------
+    logger.info(
+        "Search | strategy=%s | limit=%d | query='%s'",
+        strategy,
+        limit,
+        query,
+    )
+
+    # -------------------------------------------------------------------------
     # Semantic Search
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     if strategy == "semantic":
 
@@ -212,31 +272,31 @@ def search_chunks(
             limit=limit,
         )
 
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Keyword Search
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------------------
 
-    if strategy == "keyword":
+    elif strategy == "keyword":
 
         return keyword_search(
             query=query,
             limit=limit,
         )
 
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Hybrid Search
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------------------
 
-    if strategy == "hybrid":
+    elif strategy == "hybrid":
 
         semantic_results = semantic_search(
             query=query,
-            limit=limit * 2,
+            limit=limit * HYBRID_MULTIPLIER,
         )
 
         keyword_results = keyword_search(
             query=query,
-            limit=limit * 2,
+            limit=limit * HYBRID_MULTIPLIER,
         )
 
         merged = merge_results(
@@ -244,9 +304,19 @@ def search_chunks(
             keyword_results,
         )
 
+        logger.info(
+            "Running reranker on %d merged chunk(s).",
+            len(merged),
+        )
+
         reranked = rerank_results(
             query=query,
             chunks=merged,
+        )
+
+        logger.info(
+            "Hybrid search returned %d chunk(s).",
+            min(limit, len(reranked)),
         )
 
         return reranked[:limit]

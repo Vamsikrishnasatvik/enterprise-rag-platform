@@ -1,8 +1,25 @@
+import logging
+
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
 
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Retry Configuration
+# =============================================================================
+
+FIRST_RETRY_TOP_K = 5
+SECOND_RETRY_TOP_K = 8
+FINAL_RETRY_TOP_K = 10
+
 
 class RetryAgent(BaseAgent):
+    """
+    Prepares the workflow for another retrieval attempt by
+    resetting transient state and progressively expanding
+    the retrieval strategy.
+    """
 
     def __init__(self):
         super().__init__("RetryAgent")
@@ -11,9 +28,12 @@ class RetryAgent(BaseAgent):
         self,
         state: GraphState,
     ) -> GraphState:
+        """
+        Reset workflow state and configure the next retry.
+        """
 
         # ---------------------------------------------------------
-        # Increment Retry Count
+        # Increment Retry Counter
         # ---------------------------------------------------------
 
         retry_count = state.get(
@@ -21,16 +41,10 @@ class RetryAgent(BaseAgent):
             0,
         ) + 1
 
-        state["retry_count"] = retry_count
-
-        # ---------------------------------------------------------
-        # Reset Retry Flags
-        # Prevent stale retry state from causing infinite loops
-        # ---------------------------------------------------------
-
-        state["needs_retry"] = False
-        state["retry_required"] = False
-        state["retry_reason"] = ""
+        retry_reason = state.get(
+            "retry_reason",
+            "Low confidence answer.",
+        )
 
         # ---------------------------------------------------------
         # Progressive Retrieval Strategy
@@ -38,42 +52,50 @@ class RetryAgent(BaseAgent):
 
         if retry_count == 1:
 
-            state["retrieval_limit"] = 5
-            state["retrieval_strategy"] = "semantic"
+            retrieval_limit = FIRST_RETRY_TOP_K
+            retrieval_strategy = "semantic"
 
         elif retry_count == 2:
 
-            state["retrieval_limit"] = 8
-            state["retrieval_strategy"] = "hybrid"
+            retrieval_limit = SECOND_RETRY_TOP_K
+            retrieval_strategy = "hybrid"
 
         else:
 
-            state["retrieval_limit"] = 10
-            state["retrieval_strategy"] = "keyword"
+            retrieval_limit = FINAL_RETRY_TOP_K
+            retrieval_strategy = "keyword"
+
+        logger.info(
+            "Retry #%d | strategy=%s | top_k=%d",
+            retry_count,
+            retrieval_strategy,
+            retrieval_limit,
+        )
 
         # ---------------------------------------------------------
-        # Reset Retrieval Query
-        # QueryRewriterAgent will improve it again
+        # Reset Workflow State
         # ---------------------------------------------------------
 
-        state["retrieval_query"] = state["question"]
-
-        # ---------------------------------------------------------
-        # Clear Previous Results
-        # ---------------------------------------------------------
-
-        state["retrieved_chunks"] = []
-        state["retrieval_context"] = ""
-
-        state["answer"] = ""
-        state["citations"] = []
-
-        state["reflection"] = {}
-        state["verification"] = {}
-
-        state["confidence_score"] = 0.0
-        state["retrieval_score"] = 0.0
-        state["retrieved_document_count"] = 0
+        state.update(
+            {
+                "retry_count": retry_count,
+                "needs_retry": False,
+                "retry_required": False,
+                "retry_reason": "",
+                "retrieval_limit": retrieval_limit,
+                "retrieval_strategy": retrieval_strategy,
+                "retrieval_query": state["question"],
+                "retrieved_chunks": [],
+                "retrieval_context": "",
+                "answer": "",
+                "citations": [],
+                "reflection": {},
+                "verification": {},
+                "confidence_score": 0.0,
+                "retrieval_score": 0.0,
+                "retrieved_document_count": 0,
+            }
+        )
 
         # ---------------------------------------------------------
         # Execution Trace
@@ -84,14 +106,11 @@ class RetryAgent(BaseAgent):
             [],
         ).append(
             {
-                "agent": "RetryAgent",
+                "agent": self.name,
                 "retry": retry_count,
-                "strategy": state["retrieval_strategy"],
-                "top_k": state["retrieval_limit"],
-                "reason": state.get(
-                    "retry_reason",
-                    "Low confidence answer.",
-                ),
+                "strategy": retrieval_strategy,
+                "top_k": retrieval_limit,
+                "reason": retry_reason,
             }
         )
 

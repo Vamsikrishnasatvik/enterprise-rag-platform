@@ -2,13 +2,28 @@ import logging
 
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
-
 from app.services.verification_service import verify_answer
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+LOW_RETRIEVAL_THRESHOLD = 0.55
+VERIFICATION_CONFIDENCE_THRESHOLD = 0.60
+
+FALLBACK_ANSWER = (
+    "I couldn't find this information in the retrieved documents."
+)
+
 
 class VerificationAgent(BaseAgent):
+    """
+    Verifies that the generated answer is fully supported by the
+    retrieved context and determines whether another retrieval
+    attempt is required.
+    """
 
     def __init__(self):
         super().__init__("VerificationAgent")
@@ -17,29 +32,39 @@ class VerificationAgent(BaseAgent):
         self,
         state: GraphState,
     ) -> GraphState:
+        """
+        Verify the generated answer against the retrieved context.
+        """
+
+        retrieved_chunks = state.get("retrieved_chunks", [])
+        retrieval_score = state.get("retrieval_score", 0.0)
+        retrieved_documents = state.get(
+            "retrieved_document_count",
+            0,
+        )
+        answer = state.get("answer", "")
+        context = state.get("retrieval_context", "")
 
         # ---------------------------------------------------------
-        # Skip if no retrieval happened
+        # Skip Verification
         # ---------------------------------------------------------
 
-        if not state.get("retrieved_chunks"):
+        if not retrieved_chunks:
 
             logger.info(
-                "Verification skipped (no retrieved chunks)."
+                "Verification skipped | no retrieved chunks."
             )
 
             return state
 
         # ---------------------------------------------------------
         # Deterministic Pass
-        # Low retrieval confidence + fallback answer
         # ---------------------------------------------------------
 
         if (
-            state.get("retrieval_score", 0.0) < 0.55
-            and state.get("retrieved_document_count", 0) > 0
-            and state.get("answer", "").strip()
-            == "I couldn't find this information in the retrieved documents."
+            retrieval_score < LOW_RETRIEVAL_THRESHOLD
+            and retrieved_documents > 0
+            and answer.strip() == FALLBACK_ANSWER
         ):
 
             logger.info(
@@ -55,22 +80,26 @@ class VerificationAgent(BaseAgent):
                 ),
                 "hallucinations": [],
                 "reason": (
-                    "Fallback response is fully supported because the retrieved "
-                    "documents do not contain the requested information."
+                    "Fallback response is fully supported because the "
+                    "retrieved documents do not contain the requested information."
                 ),
             }
 
-            state["verification"] = verification
-            state["verification_passed"] = True
-            state["verification_reason"] = verification["reason"]
-            state["retry_required"] = False
+            state.update(
+                {
+                    "verification": verification,
+                    "verification_passed": True,
+                    "verification_reason": verification["reason"],
+                    "retry_required": False,
+                }
+            )
 
             state.setdefault(
                 "execution_trace",
                 [],
             ).append(
                 {
-                    "agent": "VerificationAgent",
+                    "agent": self.name,
                     "supported": True,
                     "confidence": 0.92,
                     "retry": False,
@@ -86,49 +115,53 @@ class VerificationAgent(BaseAgent):
 
         verification = verify_answer(
             question=state["question"],
-            answer=state["answer"],
-            context=state.get(
-                "retrieval_context",
-                "",
-            ),
+            answer=answer,
+            context=context,
         )
 
-        logger.info(
-            "Verification Result: %s",
-            verification,
-        )
+        try:
+            confidence = float(
+                verification.get(
+                    "confidence",
+                    0.0,
+                )
+            )
+        except (TypeError, ValueError):
 
-        # ---------------------------------------------------------
-        # Store Verification
-        # ---------------------------------------------------------
+            logger.warning(
+                "Invalid verification confidence received."
+            )
 
-        state["verification"] = verification
+            confidence = 0.0
 
         supported = verification.get(
             "supported",
             False,
         )
 
-        confidence = float(
-            verification.get(
-                "confidence",
-                0.0,
-            )
-        )
-
-        state["verification_passed"] = supported
-
-        state["verification_reason"] = verification.get(
-            "reason",
-            "",
-        )
-
         retry = (
             not supported
-            or confidence < 0.60
+            or confidence < VERIFICATION_CONFIDENCE_THRESHOLD
         )
 
-        state["retry_required"] = retry
+        state.update(
+            {
+                "verification": verification,
+                "verification_passed": supported,
+                "verification_reason": verification.get(
+                    "reason",
+                    "",
+                ),
+                "retry_required": retry,
+            }
+        )
+
+        logger.info(
+            "Verification | supported=%s | confidence=%.2f | retry=%s",
+            supported,
+            confidence,
+            retry,
+        )
 
         # ---------------------------------------------------------
         # Execution Trace
@@ -139,7 +172,7 @@ class VerificationAgent(BaseAgent):
             [],
         ).append(
             {
-                "agent": "VerificationAgent",
+                "agent": self.name,
                 "supported": supported,
                 "confidence": confidence,
                 "retry": retry,

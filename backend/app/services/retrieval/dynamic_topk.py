@@ -2,51 +2,71 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+SIMPLE_QUERY_MAX_WORDS = 5
+MEDIUM_QUERY_MAX_WORDS = 12
+
+SIMPLE_QUERY_TOP_K = 2
+MEDIUM_QUERY_TOP_K = 4
+COMPLEX_QUERY_TOP_K = 6
+
+# =============================================================================
+# Dynamic Top-K Selector
+# =============================================================================
+
 
 class DynamicTopKSelector:
     """
-    Selects the number of chunks to retrieve based on
-    query complexity.
+    Selects the retrieval depth based on query complexity.
 
-    Phase 6.1.3:
-        - Rule-based heuristic
+    Current implementation:
+        • Rule-based heuristic
 
-    Future:
-        - Planner-guided Top-K
-        - Confidence-based adaptation
-        - Token-budget optimization
+    Future improvements:
+        • Planner-guided Top-K
+        • Confidence-aware retrieval
+        • Token-budget optimization
+        • Adaptive retrieval using historical performance
     """
 
-    def select(self, question: str) -> int:
+    def select(
+        self,
+        question: str,
+    ) -> int:
         """
-        Determine the optimal retrieval depth.
+        Determines the optimal number of chunks to retrieve.
+
+        Args:
+            question:
+                User retrieval query.
+
+        Returns:
+            Recommended Top-K value.
         """
 
         words = len(question.split())
 
-        # ---------------------------------------------------------
-        # Very Simple Question
-        # ---------------------------------------------------------
+        if words <= SIMPLE_QUERY_MAX_WORDS:
 
-        if words <= 5:
-            top_k = 2
+            top_k = SIMPLE_QUERY_TOP_K
 
-        # ---------------------------------------------------------
-        # Medium Question
-        # ---------------------------------------------------------
+        elif words <= MEDIUM_QUERY_MAX_WORDS:
 
-        elif words <= 12:
-            top_k = 4
-
-        # ---------------------------------------------------------
-        # Complex Question
-        # ---------------------------------------------------------
+            top_k = MEDIUM_QUERY_TOP_K
 
         else:
-            top_k = 6
+
+            top_k = COMPLEX_QUERY_TOP_K
 
         logger.info(
-            "DynamicTopK | words=%d | selected_top_k=%d",
+            (
+                "DynamicTopK | "
+                "words=%d | "
+                "top_k=%d"
+            ),
             words,
             top_k,
         )

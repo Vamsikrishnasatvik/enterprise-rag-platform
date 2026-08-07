@@ -2,38 +2,61 @@ import logging
 
 from app.agents.base import BaseAgent
 from app.graph.state import GraphState
-
 from app.services.reflection_service import evaluate_answer
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+LOW_RETRIEVAL_THRESHOLD = 0.55
+REFLECTION_CONFIDENCE_THRESHOLD = 0.60
+
+FALLBACK_ANSWER = (
+    "I couldn't find this information in the retrieved documents."
+)
+
 
 class ReflectionAgent(BaseAgent):
+    """
+    Evaluates the generated answer for grounding,
+    completeness, and confidence.
+
+    Determines whether another retrieval attempt
+    should be performed before verification.
+    """
 
     def __init__(self):
         super().__init__("ReflectionAgent")
 
     def run(self, state: GraphState) -> GraphState:
+        """
+        Evaluate the generated answer using the Reflection LLM.
+        """
+
+        retrieved_chunks = state.get("retrieved_chunks", [])
+        retrieval_score = state.get("retrieval_score", 0.0)
+        answer = state.get("answer", "")
+        context = state.get("retrieval_context", "")
 
         # ---------------------------------------------------------
-        # Skip Reflection if no retrieval occurred
+        # Skip Reflection
         # ---------------------------------------------------------
 
-        if not state.get("retrieved_chunks"):
+        if not retrieved_chunks:
             logger.info(
-                "Reflection skipped (no retrieved chunks)."
+                "Reflection skipped | no retrieved chunks."
             )
             return state
 
         # ---------------------------------------------------------
-        # Deterministic Pass:
-        # Low retrieval score + fallback answer
+        # Deterministic Pass
         # ---------------------------------------------------------
 
         if (
-            state.get("retrieval_score", 0.0) < 0.55
-            and state.get("answer", "").strip()
-            == "I couldn't find this information in the retrieved documents."
+            retrieval_score < LOW_RETRIEVAL_THRESHOLD
+            and answer.strip() == FALLBACK_ANSWER
         ):
 
             logger.info(
@@ -53,18 +76,22 @@ class ReflectionAgent(BaseAgent):
                 ),
             }
 
-            state["reflection"] = reflection
-            state["confidence_score"] = reflection["confidence"]
-            state["needs_retry"] = False
-            state["retry_required"] = False
-            state["retry_reason"] = ""
+            state.update(
+                {
+                    "reflection": reflection,
+                    "confidence_score": reflection["confidence"],
+                    "needs_retry": False,
+                    "retry_required": False,
+                    "retry_reason": "",
+                }
+            )
 
             state.setdefault(
                 "execution_trace",
                 [],
             ).append(
                 {
-                    "agent": "ReflectionAgent",
+                    "agent": self.name,
                     "passed": True,
                     "confidence": 0.92,
                     "retry": False,
@@ -80,47 +107,23 @@ class ReflectionAgent(BaseAgent):
 
         logger.info(
             "Reflection Context:\n%s",
-            state.get(
-                "retrieval_context",
-                "",
-            ),
+            context,
         )
 
         logger.info(
             "Reflection Answer:\n%s",
-            state.get(
-                "answer",
-                "",
-            ),
+            answer,
         )
 
         # ---------------------------------------------------------
-        # Evaluate Answer using LLM
+        # Evaluate Answer
         # ---------------------------------------------------------
 
         reflection = evaluate_answer(
             question=state["question"],
-            answer=state["answer"],
-            context=state.get(
-                "retrieval_context",
-                "",
-            ),
+            answer=answer,
+            context=context,
         )
-
-        # ---------------------------------------------------------
-        # Log Reflection Result
-        # ---------------------------------------------------------
-
-        logger.info(
-            "Reflection Result: %s",
-            reflection,
-        )
-
-        # ---------------------------------------------------------
-        # Store Reflection
-        # ---------------------------------------------------------
-
-        state["reflection"] = reflection
 
         # ---------------------------------------------------------
         # Normalize Confidence
@@ -134,9 +137,12 @@ class ReflectionAgent(BaseAgent):
                 )
             )
         except (TypeError, ValueError):
-            confidence = 0.0
 
-        state["confidence_score"] = confidence
+            logger.warning(
+                "Invalid reflection confidence received."
+            )
+
+            confidence = 0.0
 
         # ---------------------------------------------------------
         # Retry Decision
@@ -144,14 +150,31 @@ class ReflectionAgent(BaseAgent):
 
         needs_retry = (
             reflection.get("retry", False)
-            or confidence < 0.60
+            or confidence < REFLECTION_CONFIDENCE_THRESHOLD
         )
 
-        state["needs_retry"] = needs_retry
-        state["retry_required"] = needs_retry
-        state["retry_reason"] = reflection.get(
-            "feedback",
-            "",
+        # ---------------------------------------------------------
+        # Store Reflection
+        # ---------------------------------------------------------
+
+        state.update(
+            {
+                "reflection": reflection,
+                "confidence_score": confidence,
+                "needs_retry": needs_retry,
+                "retry_required": needs_retry,
+                "retry_reason": reflection.get(
+                    "feedback",
+                    "",
+                ),
+            }
+        )
+
+        logger.info(
+            "Reflection | passed=%s | confidence=%.2f | retry=%s",
+            reflection.get("passed", False),
+            confidence,
+            needs_retry,
         )
 
         # ---------------------------------------------------------
@@ -163,7 +186,7 @@ class ReflectionAgent(BaseAgent):
             [],
         ).append(
             {
-                "agent": "ReflectionAgent",
+                "agent": self.name,
                 "passed": reflection.get(
                     "passed",
                     False,
