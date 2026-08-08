@@ -1,15 +1,26 @@
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.conversations import router as conversation_router
 
+
+# =============================================================================
+# Logging
+# =============================================================================
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
 )
+
+
+# =============================================================================
+# Application
+# =============================================================================
 
 app = FastAPI(
     title="Enterprise RAG Platform",
@@ -17,12 +28,35 @@ app = FastAPI(
 )
 
 
+# =============================================================================
+# CORS
+# =============================================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# =============================================================================
+# Root
+# =============================================================================
+
 @app.get("/")
 def root():
     return {
         "message": "Enterprise RAG Platform API"
     }
 
+
+# =============================================================================
+# Routers
+# =============================================================================
 
 app.include_router(api_router)
 

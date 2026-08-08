@@ -1,5 +1,7 @@
-class GraphState(TypedDict, total=False):
+from typing import Any, TypedDict
 
+
+class GraphState(TypedDict, total=False):
     # ==========================================================
     # Runtime
     # ==========================================================
@@ -18,7 +20,7 @@ class GraphState(TypedDict, total=False):
     # ==========================================================
 
     conversation_summary: str
-    recent_messages: List[Dict[str, Any]]
+    recent_messages: list[dict[str, Any]]
     memory_context: str
 
     # ==========================================================
@@ -27,7 +29,7 @@ class GraphState(TypedDict, total=False):
 
     query_type: str
     planning_reason: str
-    execution_plan: List[Dict[str, Any]]
+    execution_plan: list[dict[str, Any]]
 
     # ==========================================================
     # Supervisor
@@ -44,7 +46,7 @@ class GraphState(TypedDict, total=False):
     retrieval_limit: int
     retrieval_strategy: str
 
-    retrieved_chunks: List[Any]
+    retrieved_chunks: list[Any]
     retrieval_context: str
     retrieved_documents: int
     retrieval_score: float
@@ -61,20 +63,20 @@ class GraphState(TypedDict, total=False):
     # ==========================================================
 
     answer: str
-    citations: List[Dict[str, Any]]
+    citations: list[dict[str, Any]]
 
     # ==========================================================
     # Reflection
     # ==========================================================
 
-    reflection: Dict[str, Any]
+    reflection: dict[str, Any]
     needs_retry: bool
 
     # ==========================================================
     # Verification
     # ==========================================================
 
-    verification: Dict[str, Any]
+    verification: dict[str, Any]
 
     # ==========================================================
     # Retry
@@ -88,12 +90,12 @@ class GraphState(TypedDict, total=False):
     # Tool Execution
     # ==========================================================
 
-    tool_outputs: List[Any]
+    tool_outputs: list[Any]
 
     # ==========================================================
     # Monitoring
     # ==========================================================
 
-    execution_trace: List[Dict[str, Any]]
-    agent_timings: Dict[str, float]
-    errors: List[str]
+    execution_trace: list[dict[str, Any]]
+    agent_timings: dict[str, float]
+    errors: list[str]

@@ -1,9 +1,12 @@
 import "./globals.css";
+
 import QueryProvider from "@/providers/react-query-provider";
+import AppShell from "@/components/layout/app-shell";
 
 export const metadata = {
   title: "Enterprise RAG Platform",
-  description: "Enterprise AI Platform",
+  description:
+    "Enterprise Agentic Retrieval-Augmented Generation Platform",
 };
 
 export default function RootLayout({
@@ -13,9 +16,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>docker compose logs frontend --tail 30
+      <body>
         <QueryProvider>
-          {children}
+          <AppShell>{children}</AppShell>
         </QueryProvider>
       </body>
     </html>

@@ -91,9 +91,14 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8000"
+    env_file:
+      - ./frontend/.env.local
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - frontend_next:/app/.next
     depends_on:
       - backend
 
@@ -101,4 +106,6 @@ volumes:
   postgres_data:
   qdrant_data:
   redis_data:
+  frontend_next:
+
 
